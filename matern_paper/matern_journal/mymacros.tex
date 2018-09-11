@@ -1,0 +1,124 @@
+% formatting tweaks
+\newcommand{\te}{\!=\!} % thin equals
+\newcommand{\tneq}{\!\neq\!}
+\newcommand{\naive}{na\"{\i}ve}
+\newcommand{\Naive}{Na\"{\i}ve}
+\newcommand{\Levy}{L\'{e}vy}
+\newcommand{\myvcenter}[1]{\ensuremath{\vcenter{\hbox{#1}}}} % vertical centering
+
+% bold and caligraphic letters
+\newcommand{\ba}{\mathbf{a}}
+\newcommand{\bb}{\mathbf{b}}
+\newcommand{\bc}{\mathbf{c}}
+\newcommand{\bd}{\mathbf{d}}
+\newcommand{\bg}{\mathbf{g}}
+\newcommand{\bh}{\mathbf{h}}
+\newcommand{\bs}{\mathbf{s}}
+\newcommand{\bu}{\mathbf{u}}
+\newcommand{\bw}{\mathbf{w}}
+\newcommand{\bx}{\mathbf{x}}
+\newcommand{\by}{\mathbf{y}}
+\newcommand{\hyp}{{\mathcal H}}
+\newcommand{\model}{{\mathcal M}}
+\newcommand{\data}{{\mathcal D}}
+\newcommand{\Z}{{\mathcal Z}}
+\newcommand{\N}{{\mathcal N}}
+\newcommand{\M}{{\mathcal M}}
+\newcommand{\F}{{\mathcal F}}
+\newcommand{\vS}{{\vec{S}}}
+\newcommand{\cS}{{\mathcal S}}
+\newcommand{\vcS}{{\vec{\mathcal S}}}
+\newcommand{\cT}{{\mathcal T}}
+\newcommand{\cN}{{\mathcal N}}
+\newcommand{\ocS}{\overline{\mathcal S}}
+\newcommand{\Tu}{\mathcal{T}^{\cup}}
+\newcommand{\Su}{\mathcal{S}^{\cup}}
+\newcommand{\vSu}{\vec{\mathcal{S}}^{\cup}}
+\newcommand{\Mu}{\mathcal{M}^{\cup}}
+\newcommand{\muu}{\mu^{\cup}}
+\newcommand{\vmuu}{\vec{\mu}^{\cup}}
+\newcommand{\mul}{\mu^{<}}
+\newcommand{\tmuu}{\tilde{\mu}^{\cup}}
+\newcommand{\oSigma}{\overline{\Sigma}}
+\newcommand{\vSigma}{\vec{\Sigma}}
+\newcommand{\dif}{\mathrm{d}}
+
+% arrows without lots of space
+\newcommand{\la}{\!\leftarrow\!}
+\newcommand{\ra}{\!\rightarrow\!}
+\newcommand{\lra}{\!\leftrightarrow\!}
+
+% Miscellaneous mathematics
+\newcommand{\nth}{^{\left( n \right)}}
+\newcommand{\mth}{^{\left( m \right)}}
+\newcommand{\nnth}[1]{^{\left(#1\right)}}
+\DeclareMathOperator*{\argmax}{argmax}
+\DeclareMathOperator*{\argmin}{argmin}
+\newcommand{\pdd}[2]{\frac{\partial #1}{\partial #2}}
+
+% Colors
+%\usepackage{color}
+\definecolor{mypine}{rgb}{0.05,0.45,0.05}
+\definecolor{mydarkred}{rgb}{0.75,0.05,0.05}
+\definecolor{mypurple}{rgb}{0.75,0.0,0.75}
+\definecolor{mygray}{rgb}{0.35,0.35,0.35}
+\definecolor{mylightgray}{rgb}{0.5,0.5,0.5}
+\newcommand{\Red}{\textcolor{red}}
+%\newcommand{\Red}{\textcolor{mydarkred}}
+\newcommand{\Blue}{\textcolor{blue}}
+\newcommand{\Gray}{\textcolor{mygray}}
+\newcommand{\LightGray}{\textcolor{mylightgray}}
+\newcommand{\Purple}{\textcolor{mypurple}}
+\newcommand{\Green}{\textcolor{mypine}}
+\newcommand{\Cyan}{\textcolor{cyan}}
+\newcommand{\PineGreen}{\textcolor{mypine}}
+\newcommand{\DarkGreen}{\textcolor{mypine}}
+
+\newcommand{\txss}{\textsuperscript}
+
+% defined again below
+%\def\l({\left(}
+%\def\r){\right)}
+
+
+
+\DeclareMathOperator*{\KL}{KL}
+
+\def\bS{\mathbf{S}}
+\def\tbS{\tilde{\bS}}
+\def\tS{\tilde{S}}
+\def\ts{\tilde{s}}
+\def\tt{\tilde{t}}
+\def\tT{\tilde{T}}
+\def\tA{\tilde{A}}
+\def\tI{\tilde{I}}
+\def\tP{\tilde{P}}
+\def\tR{\tilde{R}}
+\def\tW{\tilde{W}}
+\def\tw{\tilde{w}}
+\def\tF{\tilde{F}}
+\def\tG{\tilde{G}}
+\def\tE{\tilde{E}}
+\def\bL{\mathbf{L}}
+
+\def\ind{1}
+
+\newcommand{\avg}[1]{\langle{#1} \rangle}
+
+\def\naive{na\"{\i}ve}
+\def\hlambda{\hat{\lambda}}
+\def\ulmb{\underline{\lambda}}
+\def\olmb{\overline{\lambda}}
+\def\uR{\underline{R}}
+\def\oR{\overline{R}}
+\def\Reps{R^{\epsilon}}
+\def\leps{\lambda^{\epsilon}}
+
+% these break default latex commands for, e.g., Swedish names
+%\def\l({\left(} 
+%\def\r){\right)}
+
+\def\matern{Mat\'{e}rn }
+
+\newcommand{\NOTE}[1]{\textcolor{red}{[#1]}}
+\newcommand{\given}{\,|\,}

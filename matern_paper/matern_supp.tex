@@ -1,0 +1,139 @@
+\documentclass{statsoc}
+\usepackage{times}
+%\documentstyle[nips07submit_09,times]{article}
+\usepackage{fullpage}
+\usepackage{color,graphicx}
+\usepackage{eurosym}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{verbatim}
+\usepackage{mathrsfs}
+
+\usepackage{footmisc}
+\usepackage[utf8]{inputenc}
+    
+
+\usepackage{url}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{algpseudocode}
+\newtheorem{defn}{Definition}
+    
+\input{mymacros}
+%\newtheorem{defn}{Definition} 
+\newtheorem{prop}[defn]{Proposition} 
+\newtheorem{thrm}[defn]{Theorem} 
+\newtheorem{coro}[defn]{Corollary}
+\newcommand{\vinayak}[1]{\textcolor{red}{[Vinayak: #1]}}
+
+\newcounter{subfigure}
+
+\title{Bayesian inference for \matern repulsive processes (Supplementary material)}
+\author{Vinayak Rao\thanks{Corresponding author}}
+\address{Department of Statistics, Purdue University, USA}
+\author{Ryan P. Adams}
+\address{School of Engineering and Applied Sciences, Harvard University, USA}
+\author{David Dunson}
+\address{Department of Statistical Science, Duke University, USA}
+\date{}
+
+% Vinayak: to do: David section 6
+
+\begin{document}
+
+\maketitle
+
+\section{Supplementary}
+
+  \begin{figure}
+  \begin{minipage}[h]{0.22\linewidth}
+  \caption[Post Pred]{Posterior predictive values of J-functions for the Swedish pine tree dataset. (Top left) is the \matern hardcore model,
+  (top right) is the softcore model, and (bottom left) is probabilistic thinning. (Bottom right): predictive values for a Strauss process fit.}
+  \label{fig:swed_J_pred}
+  \end{minipage}
+  \begin{minipage}[h]{0.76\linewidth}
+  \begin{minipage}[h]{0.49\linewidth}
+  \centering
+  \includegraphics[width=0.99\textwidth]{figs/Jfunc_postpred_R10/swed_hc.pdf}
+  \end{minipage}
+  \begin{minipage}[h]{0.49\linewidth}
+  \centering
+  \includegraphics[width=0.99\textwidth]{figs/Jfunc_postpred_R10/swed_sc.pdf}
+  \end{minipage}
+  \begin{minipage}[h]{0.49\linewidth}
+  \centering
+  \includegraphics[width=0.99\textwidth]{figs/Jfunc_postpred_R10/swed_prob_full.pdf}
+  \end{minipage}
+  \begin{minipage}[h]{0.49\linewidth}
+  \centering
+  \includegraphics[width=0.98\textwidth]{figs/Jfunc_postpred_R10/swed_gibbs.pdf}
+  \end{minipage}
+  \end{minipage}
+  \end{figure}
+
+  The plots  of figure \ref{fig:swed_J_pred} consider the J-function (van Lieshout and Baddeley, 1996), a measure of spatial interaction with 
+$J(r)$ corresponding to the ratio of the 
+  probability there is no event at distance $r$ from another event to the probability there is no event at distance $r$ from an arbitrary point
+  in the space. For a Poisson process, these two probabilities are equal, so that $J(r)$ equals $1$. Repulsion correspond to
+  $J(r) > 1$, while $J(r)<1$ suggests a clustered pattern. 
+  The continuous magenta line in figure~\ref{fig:swed_J_pred} plots the empirical $J(r)$ as a function of distance $r$ for the 
+  pine tree dataset. Again we see that this is a non-Poisson repulsive process. The blue envelope shows posterior predictive estimates for the J-function 
+  produced by fitting the \matern type-III hardcore process (top left), softcore process (top right) and with probabilistic thinning (bottom left). 
+  See the main text for a description of these. 
+  As with the L-function, the predictive intervals for the hardcore and softcore processes do not fit the data, but contrast the generalized \matern
+with probabilistic thinning does a much better job. The bottom right subplot shows predictions from a MLE fit of a Strauss process, which also
+produces reasonable (but not good)  fits.
+
+  \begin{figure}
+  \begin{minipage}[h]{0.24\linewidth}
+  \caption[Post Pred]{(Top row): Posterior predictive values of the J-functions for the \matern model with probabilistic thinning for mild (left) and 
+  moderate (right) neuropathy. (Bottom row): Corresponding predictive values for Strauss process fits.}
+%  \caption[Post Pred]{Posterior predictive values of J-functions for the Swedish pine tree dataset. (Top left) is the \matern hardcore model,
+%  (top right) is the softcore model, and (bottom left) is probabilistic thinning. (Bottom right) is the fit for a Strauss process.}
+  \label{fig:diab_Jfunc}
+  \end{minipage}
+  \centering
+  \begin{minipage}[h]{0.74\linewidth}
+  \begin{minipage}[h]{0.49\linewidth}
+  \centering
+  \includegraphics[width=0.98\textwidth]{figs/Jfunc_postpred_R10/mild1_prob_full.pdf}
+  \end{minipage}
+  \begin{minipage}[h]{0.49\linewidth}
+  \centering
+  \includegraphics[width=0.98\textwidth]{figs/Jfunc_postpred_R10/mod1_prob_full.pdf}
+  \end{minipage}
+  \begin{minipage}[h]{0.49\linewidth}
+  \centering
+  \includegraphics[width=0.98\textwidth]{figs/Jfunc_postpred_R10/mild1_gibbs.pdf}
+  \end{minipage}
+  \begin{minipage}[h]{0.49\linewidth}
+  \centering
+  \includegraphics[width=0.98\textwidth]{figs/Jfunc_postpred_R10/mod1_gibbs.pdf}
+  \end{minipage}
+  \end{minipage}
+  \end{figure}
+The top row of figure \ref{fig:diab_Jfunc} shows posterior predictive values for a \matern process with probabilistic thinning for
+mild (left) and moderate (right) neuropathy. The bottom row shows fits for a Strauss process, again, these are worse.
+  \begin{figure}
+  \centering
+  \begin{minipage}[h]{0.28\linewidth}
+  \caption{Inhomogeneous J-function for the Greyhound dataset: (left) posterior predictive values for nonstationary \matern, and (right)
+  fit of an inhomogeneous Poisson process} 
+  \label{fig:grey_ncscga_jfunc}
+  \end{minipage}
+  \begin{minipage}[h]{0.32\linewidth}
+    \centering
+    \includegraphics[width=0.98\textwidth, angle=0]{figs/greyhound_NCSCGA_matern_J.pdf}
+  \end{minipage}
+  \begin{minipage}[h]{0.32\linewidth}
+  \centering
+    \includegraphics[width=0.98\textwidth, angle=0]{figs/greyhound_NCSCGA_poisson_J.pdf}
+  \end{minipage}
+  \end{figure}
+
+Figure \ref{fig:grey_ncscga_jfunc} shows the nonstationary J-function estimated from the Greyhound dataset. This statistic does not capture
+a significant deviation from Poisson (unlike the L-function), but both the inhomogeneous \matern model and the inhomogeneous Poisson process
+fit it well.
+
+
+\end{document}

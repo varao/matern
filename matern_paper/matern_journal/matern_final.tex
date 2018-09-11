@@ -1,0 +1,1367 @@
+\documentclass{statsoc}
+\usepackage{times}
+%\documentstyle[nips07submit_09,times]{article}
+\usepackage{fullpage}
+\usepackage{color,graphicx}
+\usepackage{eurosym}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{verbatim}
+\usepackage{mathrsfs}
+
+\usepackage{footmisc}
+\usepackage[utf8]{inputenc}
+    
+
+\usepackage{url}
+\usepackage{algorithm2e}
+\usepackage{algorithmicx}
+\makeatletter
+\renewcommand{\@algocf@capt@plain}{above}% formerly {bottom}
+\makeatother
+\newtheorem{defn}{Definition}
+    
+\input{mymacros}
+%\newtheorem{defn}{Definition} 
+\newtheorem{prop}[defn]{Proposition} 
+\newtheorem{thrm}[defn]{Theorem} 
+\newtheorem{coro}[defn]{Corollary}
+\newcommand{\vinayak}[1]{\textcolor{red}{[Vinayak: #1]}}
+
+\newcounter{subfigure}
+
+\title{Bayesian inference for \matern repulsive processes}
+\author{Vinayak Rao\thanks{Corresponding author}}
+\address{Department of Statistics, Purdue University, USA}
+\author{Ryan P. Adams}
+\address{School of Engineering and Applied Sciences, Harvard University, USA, and Twitter}
+\author{David Dunson}
+\address{Department of Statistical Science, Duke University, USA}
+\date{}
+
+% Vinayak: to do: David section 6
+
+\begin{document}
+
+\maketitle
+\begin{abstract}
+In many applications involving point pattern data, the Poisson process assumption is unrealistic, with the data exhibiting a
+more regular spread.
+Such repulsion between events is exhibited by trees for example, because of competition for light and nutrients. Other examples include the locations of 
+biological cells and cities, and the times of neuronal spikes. Given the many 
+applications of repulsive point processes, there is a surprisingly limited literature developing flexible, realistic and interpretable models, as well as 
+efficient inferential 
+methods.  We address this gap by developing a modeling framework around the Mat\'ern type-III repulsive process. 
+We consider a number of extensions of the original \matern type-III process for both the homogeneous and inhomogeneous cases.
+We also derive the probability density of this generalized \matern process, allowing us to characterize the conditional distribution of the various 
+latent variables, and leading to a novel and efficient Markov chain Monte Carlo algorithm.
+We apply our ideas to datasets of spatial locations of trees, nerve
+fiber cells and Greyhound bus stations.
+\keywords{Event process; Gaussian process; Gibbs sampling; Mat\'ern process; Point pattern data; Poisson process; Repulsive process; Spatial data}
+\end{abstract}
+
+
+
+\section{Introduction}
+
+Point processes find wide use in fields such as 
+astronomy~\citep{Peebles74}, biology~\citep{WallSar11}, ecology~\citep{Hill1973}, epidemiology~\citep{Knox04}, geography~\citep{kendall39} and 
+neuroscience~\citep{Brown2004a}. The simplest and most popular model for point pattern data is the Poisson process (see for example \citet{DalVer2008a}); however, implicit in the 
+Poisson process is the assumption of independence of the event locations. This simplification is unsuitable for many
+real applications in which it is of interest to account for interactions between nearby events. 
+
+Point processes on the real line can deviate from Poisson either by being more bursty or more refractory. In higher dimensions, 
+these are called {clustered} and {repulsive} processes.  Our focus is on the latter,
+%and we shall focus on modeling overdispersed point processes, or repulsive point processes as they are popularly called. Such processes area 
+characterized by being more regular (underdispersed) than the Poisson process. Reasons for this could be competition for finite resources 
+between trees~\citep{Strand72}, interaction between rigid objects such as cells~\citep{WallSar11} or 
+the result of planning (for example, the locations of bus stations).
+Characterizing this repulsion is important towards understanding how disease affects cell locations~\citep{WallSar11}, how neural spiking
+history affects stimulus response~\citep{Brown2004a} or how reliable a network of stations is~\citep{Sahin2007}.
+%repulsive forces between particles. 
+
+%For instance, when modeling the distribution
+%of trees in a geographical area, competition for light and other resources results in inter-event distances that are more regular than the Poisson 
+%process \citep{Strand72}. Other applications where modeling such interactions is important include the distribution of cities \citep{glass03}, 
+%galaxies \citep{Peebles74}, and infected agents in epidemiological studies \citep{Jewell09}.
+
+Developing a flexible and tractable statistical framework to study such 
+repulsion is not straightforward on spaces more complicated than the real line.  
+For the latter, the ordering of points leads to a convenient framework based on renewal processes~\citep{DalVer2008a}.
+%Towards this, 
+This work focuses on a class of repulsive point processes on higher-dimensional spaces called the \matern type-III process. First introduced in \citet{Matern60, Matern86}, 
+this involves thinning events of a `primary' Poisson process that are `too close to each other'. 
+Starting with the simplest such process (called a hardcore process), we introduce extensions that provide a flexible framework for modeling
+repulsive processes. We derive the probability density of the resulting process, a characterization that allows us to identify the conditional 
+distribution over the thinned events as a simple Poisson process. This allows us to develop a simple and efficient Markov chain Monte Carlo algorithm for 
+posterior inference. Code implementing different models and algorithms is available at \url{https://github.com/varao/matern}. 
+
+\section{Related work}
+
+%an event from a point process corre. Unlike the 1-D case, no simple causal structure.
+%%such interactions on the real line is straightforward as we saw in \ref{ch:Chapter5}: 
+%Renewal processes (and their extensions) exploit the ordering of the real line to define a Markov process where distribution of the time of the next event 
+%depends on the current history of events. %time since the last event
+%%\footnote{One can easily generalize to more complicated dependencies on the past.}. % we only needed to worry about
+%the last event, 
+%By allowing these waiting times to have distributions other than the exponential, one can define more flexible classes of point processes. Such an approach does not generalize 
+%easily to higher dimensions, however. %defining such a Markov property is less straightforward.
+%%For instance, consider the \emph{avoidance function}, $a(A)$; this is the probability that no events occur in a set $A$ \citep{DalVer2008a}. For the homogeneous Poisson with 
+%%intensity $\lambda$, letting $\mu(A)$ represent the area of this set, we have that this probability decays exponentially with the area of the set 
+%%$\l(\text{i.e.\ }p(N(A) = 0) = \exp(-\lambda \mu(A))\right)$. As with renewal processes, one might try to generalize this, noting from \citep{DalVer2008a} that a simple\footnote{A point process 
+%%is simple if no more than one event can occur at any location.} point process is completely specified by its 
+%%avoidance function evaluated on all measurable sets.
+%%%$a(\cdot)$ 
+%%However, care needs to be taken to ensure that such a process is well defined, since unlike the renewal process, such a generalization does not provide us with a direct 
+%%constructive definition of the point process. 
+%%Additionally, the specification above does not intuitively describe the nature of, say, pairwise interactions between events. Inference over any parameters of the 
+%%avoidance function is also not straightforward.
+
+%One framework for modeling interactions in higher dimensions is that of 
+{Gibbs processes}~\citep{DalVer2008a} arose from the statistical physics literature to describe 
+systems of interacting particles. A Gibbs process assigns energy %$U(S)$ 
+  $U(S) = \sum_{i=1}^n \sum_{1 \le j_1 < \ldots < j_i \le n} \psi_i(s_{j_1},\ldots,s_{j_i})$
+to any configuration of events $S = (s_1, \ldots,s_n )$, 
+%defined most generally as
+%\vspace{-.1in}
+%\begin{align}
+%\end{align}
+%If there are no interactions, we can recover the Poisson process with intensity $\psi$ by assigning appropriate energies to states with $n$ events. 
+where $\psi_i$ is an $i$th-order potential term.
+Usually, interactions are limited to be pairwise, %so that the energy is given by
+%\begin{align}
+%  U(\{s_1,\cdots, s_n\}) &= \sum_{i=1}^n \psi_1(s_{i}) +  \sum_{i=1}^n \sum_{j = i + 1}^n \psi_2(s_{i}, s_{j})
+%\end{align}
+and by choosing these potentials appropriately, one can model different kinds of interactions. 
+%Usually, the interaction kernels are chosen to be stationary, 
+%depending only on the
+%distance $r$ between the two points. Typical choices include
+%\begin{align}
+%  \psi_2(r) &= - \log(1 - e^{-(r/\sigma)^2}) \\
+%  \psi_2(r) &= - (\sigma/r)^n \\
+%\intertext{Alternately, we can have `hardcore' processes with interaction potentials defined as}
+%  \psi_2(r) = \left\{
+%  \begin{array}{l l}
+%              \infty \quad r \le R \\
+%              0     \ \ \quad r > R
+%  \end{array} \right.
+%\end{align}
+%Recalling the notion of the Janossy density of a point processes (\ref{sec:poiss_density}), 
+The probability density of any configuration is proportional to its exponentiated
+negative energy, and letting $\theta$ parametrize the potential energy, we have
+\vspace{-.051in}
+\begin{align}
+  p(S\given\theta) &= {\exp(-U(S;\theta))}/{Z(\theta)}.
+\end{align}
+%The price we have to pay for the flexibility afforded by this modeling framework. 
+Unfortunately, evaluating the normalization constant $Z(\theta)$ is usually intractable, making
+even sampling from the prior difficult; typically, this requires a coupling from the past approach~\citep{Moller2007}. 
+%This usually proceeds by a birth-death process, or a coupling from the past approach that builds on this. 
+% with the so-called `doubly-intractable' posterior usually requiring approximate MCMC schemes
+Inference over the parameters usually proceeds by maximum likelihood or pseudolikelihood methods~\citep{Moller2007, Mateu2001}, and is slow and expensive.
+
+Determinantal point processes~\citep{hough_dpp,Scardicchio09}) are another framework for modeling repulsion. While
+these processes are mathematically and computationally elegant, they are not intuitive or easy to specify, and with few exceptions (e.g.,~\citet{affandi2014learning}) there is little Bayesian work involving such models. %, much of their popularity has to do with the analysis of such models.
+
+
+There has also been work using \matern type-I and II processes (see~\cite{WallSar11}). We mention some limitations of these next. Additionally,
+our sampling scheme outlined later does not extend to these processes, making Bayesian inference via MCMC less natural than with the
+type-III process.
+
+\section{\matern repulsive point processes}
+
+\cite{Matern60} proposed three schemes, now called the \matern type-I, type-II, and type-III hardcore point processes,
+for constructing repulsive point processes.
+%was proposed in \cite{Matern60} and is based on the idea of thinning events of a Poisson process. \matern 
+%proposed three schemes, now called the \matern type-I, type-II, and type-III hardcore point processes.
+For the type-I process, one samples a \emph{primary} process from a homogeneous Poisson process 
+with intensity $\lambda$, and then deletes all points separated by less than $R$. While the simplicity of this scheme makes it amenable to theoretical 
+analysis, the thinning strategy is often too aggressive. In particular, %as the number of primary Poisson events increases, the probability of a point falling 
+%within a radius~$R$ of some other point also increases, thereby increasing the probability of it being thinned. 
+as $\lambda$ increases the thinning effect begins to dominate, and eventually the density of \matern events begins to {decrease} with $\lambda$.
+%one can show that the average number of events in any area is not monotonic in the 
+%intensity $\lambda$; rather it first increases to a maximum value, before then decreasing with $\lambda$. 
+%%The reason for this is that 
+
+The \matern type-II process tries to rectify this by assigning each point an `age'.
+When there is a conflict between two points, 
+rather than deleting {both}, the older point survives. While this construction allows higher event densities, it also allows 
+an event to be thinned by an earlier point that was also thinned. This is slightly unnatural, as one might expect only surviving points to influence 
+future events. 
+%Additionally, while this process supports higher event densities than the type-I process, this density is still not monotonic with $\lambda$, making this parameter hard to interpret. 
+
+The \matern type-III process %, described more carefully in the next section, 
+addresses these limitations by letting a newer event be thinned only if 
+it falls within radius $R$ of 
+an older event that was not thinned before. %We shall focus on variations of this process for the rest of this paper.
+%define it more precisely in the next section.
+%\subsection{The \matern type-III repulsive point process}
+The resulting process has a number of desirable properties. In many applications, this thinning mechanism is 
+more natural than the type-I and II processes. %, where thinned event from the past can influence future events.
+In particular, it forms a realistic model for various spatio-temporal phenomena where the latent birth times are not observed, and
+must be inferred.  This process also supports higher event densities than the type-I and 
+type-II processes with the same parameters; in fact, as $\lambda$ increases,
+the average number of points in any area increases monotonically to %with the intensity $\lambda$ 
+%of the primary process; in fact as $\lambda$ tends to infinity, this average reaches 
+the `jamming limit', the maximum density at which spheres of radius $R$ can be packed in a bounded area~\citep{moller10}. %This implies that this process 
+Monotonicity with respect to the intensity of the primary process is important when we model inhomogeneity by
+allowing $\lambda$ to vary with location (see section~\ref{sec:inhom_mat}), with large values of $\lambda$ implying high densities.
+
+In spite of these properties, the \matern type-III process has not found widespread use in the spatial point process community.
+Theoretically it is not as well understood as the other two \matern processes; for instance, there is no closed form 
+expression for the average number of points in any region. Instead, one usually resorts to simulation studies to better understand the modeling assumptions
+implicit to this process.
+%This complication arises because of the dependent nature of the 
+%thinning. For the type-I and II processes, to decide whether an event of the primary Poisson process is thinned or not, one only has to look 
+%at other events of this process within a neighbourhood of radius $R$. For the type-III process, one also needs to know whether each of these neighbouring points was thinned or
+%not, thereby requiring knowledge of primary points within neighbourhoods of those points as well. This expanding influence means that any primary event can
+%potentially affect \emph{all} points that were born afterwards. This can also result in tricky edge effects if one regards the area of interest, $\cS$, as a subset 
+%of a larger ambient space \citep{moller10}. For the type-I and II processes, this would require us to instantiate the primary process on the union of $\cS$ with a 
+%surrounding boundary of width $R$. For the type-III process, because of the effect described previously, this boundary can be arbitrarily wide. We bypass this latter
+%issue by defining the \matern 
+%process as generated by a Poisson process on $\cS$ (and not as an observed subset of some larger process).
+
+A more severe impediment to the use of this process (and the other \matern processes) is that given a realization,
+there do not exist efficient techniques for inference over parameters 
+such as $\lambda$ or $R$. The few existing inference schemes involve imputing, and then perturbing the 
+thinned events via 
+incremental birth-death steps. This sets up a Markov chain which proceeds by randomly inserting, deleting or shifting the thinned events, with
+the various event probabilities set up so that the Markov chain converges to the correct posterior over thinned events~\citep{moller10, Hube:Wolp:2009, adamsthesis}. 
+Given the entire set of thinned events, it is straightforward to obtain samples of
+the parameters~$\lambda$ and~$R$. However, the incremental nature of these 
+birth-death updates can make the sampler mix quite slowly. The birth-death sampler can be adapted to a coupling from
+the past scheme to draw perfect samples of the thinned events~\citep{Hube:Wolp:2009}. This can then be used to approximate the likelihood of the \matern observations, or perhaps, to 
+drive a Markov chain following ideas from~\cite{AndRob10}. However, this too can be quite inefficient, 
+with long waiting times until the sampler returns a perfect sample.
+
+Somewhat surprisingly, despite being more complicated than the type-I and II processes, 
+we can develop an efficient MCMC sampler for the type-III process.
+Before describing this, we develop more general extensions of the \matern type-III process, providing a flexible and practical 
+framework for modeling repulsive processes.
+
+
+\section{Generalized \matern type-III processes} \label{sec:gen_mat}
+
+
+   A \matern type-III hardcore point process on a measurable space~$(\cS,\Sigma)$
+ is a repulsive point process parametrized by an intensity~$\lambda$ and an 
+interaction radius~$R$. It is obtained by thinning events
+of a homogeneous {primary} Poisson process~$F$ with intensity~$\lambda$. 
+Each event~${f \in F}$ of the primary process is independently assigned a random mark~$t$, the time of its
+birth. Without loss of generality, we assume this takes values in the interval~$[0,1]$, which
+we call~$\cT$. %From the marking theorem \citep{kingman93} %(\ref{thrm:marking}), 
+The~$(f_i, t_i)$ form a Poisson process~${F}^{+}$
+on~${\cS \times \cT}$ whose intensity is still~$\lambda$. 
+%Assuming the area $\mu(\cS)$ of $\cS$ is finite, the primary process $F$ is an element
+%of the space $(\cS \times \cT)^{\cup}$ of all finite sequence in the product space~$(\cS \times \cT)$. 
+Call the collection of birth times~$T^F$, and define~${F^{+} \equiv (F,T^F)}$ as the collection of (location, birth time) pairs. $T^F$ induces an ordering on the 
+events in~${F}^{+}$, % (with probability $1$, all events will have different times of birth), 
+%and thus on~$F$. 
+and a secondary process~${G^{+} \equiv (G, T^G)}$ is obtained by traversing~$F^{+}$ in this order and deleting all points within 
+a distance~$R$ of any {earlier}, {undeleted} point. We obtain the \matern process~$G$ by projecting~$G^{+}$ onto~$\cS$.
+%While such space-time processes are useful and convenient when marks ore observed, we are interested in a purely spatial process.
+
+   \begin{figure}
+   \centering
+     \includegraphics[width=.3\textwidth]{figs/matern3_fig.pdf}
+    \includegraphics[width=.3\textwidth]{figs/matern3_fig_sc.pdf}
+    \includegraphics[width=.3\textwidth]{figs/matern3_fig_prob.pdf}
+ \caption[The \matern type-III hardcore point process]{(left) The \matern type-III hardcore point process in 1-d: filled dots (projected
+  onto $\cS$) are \matern events, empty dots are thinned events.  The shaded
+ region is the shadow.
+(center) and (right): \matern type-III processes with varying radii and probabilistic deletion}
+   \label{fig:matern3_fig}
+   \end{figure}
+
+
+%  \label{fig:matern3_ext}
+
+
+Figure~\ref{fig:matern3_fig}(left) shows relevant events for the $1$-dimensional case. The filled dots
+form the \matern process $G$ and the empty dots represent thinned events.
+Both together form the primary process. 
+Define the `shadow' of a point ${(s^*,t^*) \in \cS \times \cT}$ as the indicator function for all locations in ${\cS \times \cT}$ that would
+be thinned by $(s^*,t^*)$. This is the set of all points whose $\cS$-coordinate is within $R$ of  $s^*$, and whose $\cT$-coordinate is greater than $t^*$. 
+Letting $I$ be the indicator function, define the shadow %$\mathscr{H}$ 
+of $(s^*,t^*)$ at $(s,t)$ as
+\begin{align}
+%  \mathscr{H}(u,R) = \left\{(\tilde{s}, \tilde{t}) \in \cS \times \cT: \lVert s - \tilde{s} \rVert < R \textnormal{ and } t < \tilde{t}\; \right\}
+  \mathscr{H}(s,t;s^*, t^*, R) = I(t > t^*) I(\lVert s - s^* \rVert < R). 
+\end{align}
+The shadow of $G^+$ is all locations that would be thinned by any element of $G^+$: % and is given by %related to the product of the shadows of its elements:
+\begin{align}
+  \mathscr{H}(s,t;G^+) = 1 - \!\!\!\!\!\!\! \prod_{(s^*,t^*) \in G^+} \!\!\!\!\!\!\! \left(1 - \mathscr{H}(s,t;s^*,t^*, R) \right).
+\end{align}
+%This is the set of all points that occur after, and within a radius $R$ of some element of the set. 
+For notational convenience, we drop the dependence of the shadow on $R$ above.
+The shaded area in figure~\ref{fig:matern3_fig}(left) shows the shadow of all \matern events, $G^+$. Note that all 
+thinned events must lie in the shadow of the \matern events, otherwise 
+they couldn't have been thinned. Similarly, \matern events cannot lie in each
+others shadows; however, they \emph{can} fall within the shadow of some thinned event.
+
+The hardcore repulsive process can be generalized in a number of ways, %they easily extend to more 
+For instance, instead of requiring all 
+\matern events to have the same radius, we can assign each an independent radius drawn from 
+some distribution $q(R)$. Such \matern processes are called softcore repulsive processes~\citep{Hube:Wolp:2009}. In this case, the primary process
+can be viewed as a Poisson process on a space whose coordinates are location $\mathcal{S}$, birth time $\mathcal{T}$ and radius
+$\mathcal{R}$. Given a realization $F^+ \equiv (F, T^F, R^F)$, we define a secondary point process $G^+ \equiv (G, T^G, R^G)$ by deleting 
+all points that fall within the radius associated with an older, undeleted primary event.  The locations $G$ constitute a sample from the 
+softcore \matern type-III process. %For such a process, given the locations and birth times
+%of the \matern events as well as the set of radii, 
+Given the triplet $(G, T^G, R^G)$, we can once again calculate the shadow $\mathscr{H}$, now defined as: 
+%\begin{align*}
+%  \mathscr{H}(G^+) = \{(s,t): \exists\ i \textnormal{ such that } \lVert{s -g_i}\rVert < r^G_i \textnormal{ and } t > t^G_i \}
+%\end{align*}
+\begin{align}
+  \mathscr{H}(s,t;G^+) = 1 - \!\!\!\!\!\!\!\!\!\!\! \prod_{(s^*,t^*, r^*) \in G^+} \!\!\!\!\!\!\!\!\!\! \left( 1 - \mathscr{H}(s,t;s^*,t^*, r^*) \right).
+\end{align}
+Figure~\ref{fig:matern3_fig}(center) illustrates this; note that the radii of the thinned events are irrelevant. 
+%Theorem
+%\ref{thrm:mat_dens} still gives the density of the softcore \matern process, and resampling the thinned 
+%events is identical to the previous section, viz.\ resample a Poisson process with intensity
+%restricted to the shadow $\mathscr{H}(G^+)$. We now need to resample the interaction radius $r^G_g$ of each \matern event $g$ as well, and we can do this 
+%by sequentially updating these one at a time. 
+%Once again, the posterior is the prior $p(R)$ truncated so that the resulting shadow is consistent with the instantiated primary and 
+%secondary events. 
+%A change in a radius $r^G_g$ now produces only a local change in the shadow $\mathscr{H}$, so that most of these updates are uncoupled.
+
+We propose an approach to soft repulsion by \emph{probabilistically} thinning events of the primary Poisson process. %Such an approach was suggested
+%in \citep{adamsthesis}, and 
+This is a generalization of ideas present in the literature, allowing flexible control over the strength of the repulsive effect (the thinning
+probability) as well as its span (the interaction radius). Our extension further allows more realistic models where the probability of 
+deletion decays smoothly with distance from a previous unthinned point, and we will deal with this general case below.
+%, we will not pursue it in our experminents.
+%be constant, or can depend on the distance of a point to 
+%primary event is retained only if it is left unthinned by all surviving points with earlier birth times. 
+Write the deletion kernel associated
+with location $s^*$ as $K(\cdot, s^*)$, so that the probability of thinning an event located at $(s,t)$ is given by $I(t > t^*)K(s, s^*)$. 
+To keep this process efficient, 
+one can use a deletion kernel with a compact support; figure~\ref{fig:matern3_fig}(right) illustrates the resulting shadow.
+Where previously the \matern events defined a black-or-white shadow, now the shadow can have intermediate `grey' values corresponding
+to the probability of deletion. Now the shadow at any location $(s,t) \in \cS \times \cT$ is given by
+\begin{align}
+  \mathscr{H}(s,t;G^+) &= 1 - \!\!\!\!\!\!\! \prod_{(s^*,t^*) \in G^+} \!\!\!\!\!\! \left(1 - I(t > t^*) K(s, s^*) \right). \label{eq:thin_shad}
+\end{align}
+For this process, while the thinned events must still lie in the shadow $\mathscr{H}(s,t;G^+)$, \matern events \emph{can} lie in each other's shadow.
+We recover the \matern processes with deterministic thinning by letting $K$ be the indicator function.
+
+Another generalization is to allow the thinning probability to depend on the difference of the birth times of two events. This is useful in
+applications where the repulsive influence of an event decays as time passes, and the thinning probability is given by~$K_1(t, t^*)K_2(s, s^*)$.
+While we do not study this, we mention it to demonstrate the flexibility of the \matern framework towards developing realistic 
+repulsive mechanisms.
+%The shadow is still defined as in equation \eqref{eq:thin_shad}.
+%Our sampler handles this case without any difficulty; it is easy to see that the thinned events $\tF$ are now drawn from a Poisson
+%process with intensity $\lambda \mathscr{H}(G^+)$.
+%Sampling from this Poisson process %with intensity $\lambda\left(1 - \mathscr{H}(G^+)\right)$ 
+%is a simple application of the thinning theorem:
+%instantiate a Poisson process with intensity $\lambda$ on $\cS \times \cT$, and keep each point with probability ${\mathscr{H}(G^+)}$.
+%Notice that for the hardcore model, this reduces to the sampling scheme of \ref{prop:mat_post}. 
+%Other possible generalizations include letting the thinning probability also depend on the difference in the birth times.
+
+Finally, we mention that repulsive processes on the real line can be viewed as generalized \matern type-III processes where birth times are
+observed. Probabilistic thinning recovers a class of self-inhibiting point processes commonly used to model neuronal spiking~\citep{Brown2004a}. Similarly, renewal processes
+can be viewed as a \matern type-III process where the shadow $\mathscr{H}$ has a special Markovian construction. %Our ideas apply to all these classes of models.
+
+
+\subsection{Probability density of the \matern type-III point process}  \label{sec:matern_pdf}
+
+ %Define ${\cS}^{+}$ as the product space $(\cS \times \cT)$, equipped with the product $\sigma$-algebra ${\Sigma}^{+}$. 
+%In this section, we calculate the probability density of the generalized \matern process. 
+%We will use this to characterize the posterior distribution over unobserved variables, leading to 
+%an efficient MCMC algorithm.
+%This result is also interesting in its own right, allowing more theoretical studies of the generalized
+%\matern process.
+%
+Let $(\cS, \Sigma)$ be a subset of a $d$-dimensional Euclidean space ($\Sigma$ is the Borel $\sigma$-algebra). For two points $\bs_1, \bs_2 \in \cS$,
+define ${\bs_1 > \bs_2}$ if ${s_{1d} > s_{2d}}$. Thus the last coordinate defines a partial ordering on $\cS$ (and we will associate this 
+coordinate with the birth time of an event).
+A realization %$S$ (with cardinality $|S|)$ 
+of a \matern process on $\cS$  is obtained by thinning a primary Poisson process, and has finite cardinality if the primary process is finite. 
+We restrict ourselves to this case. Note that with probability one, there is unique ordering of the Poisson elements
+according to the partial ordering we just defined. This will allow us to associate realizations of point processes
+with unique, increasing sequences of points in $\cS$. Below, we describe this space of point process realizations.
+
+
+For each~$n$, let~$\cS^n$ be the~$n$-fold product space with the usual product~$\sigma$-algebra,~$\Sigma^n$. We refer
+to elements of~$\cS^n$ as~$S^n$. %Thus~${\vS^n \equiv (s_1,\cdots, s_n)}$ is a vector in~$\cS$ of length~$n$. 
+Define the union space ${\tilde{S}^{\cup} \equiv \bigcup_{n=0}^{\infty} \cS^n}$ (where 
+$\cS^0$ is a point corresponding to an empty sequence) %satisfying ${\cS^0 \times \cS = \cS \times \cS^0 = \cS}$) 
+and assign it 
+the~$\sigma$-algebra $\tilde{\Sigma}^{\cup} \equiv \{\bigcup_{n=0}^{\infty} A^n, \ \ \forall A^n \in \Sigma^n\}$. 
+$\tilde{S}^{\cup}$ is the space of all finite sequences in~$\cS$, and define $(\Su, \Sigma^{\cup})$ as its restriction to {increasing} sequences
+in $\cS$. We treat finite point processes as random variables taking values in $\Su$, and refer to elements of this space
+by uppercase letters (e.g.\ $S$). %, and associate these with realizations of point processes. %The arrows remind us that these are vectors or ordered sequences.
+For a finite measure $\mu$ on $(\cS,\Sigma)$ (e.g.\ Lebesgue measure), let $\mu^n$ be the $n$-fold product measure on~$(\cS^n, \Sigma^n)$.
+Assign any set $B \in \Sigma^{\cup}$ the measure
+\begin{align}
+  \muu(B) &= \sum_{n=0}^{\infty} \mu^n(B \cap \cS^n)
+         = \sum_{n=0}^{\infty} \int_{B \cap \cS^n}  \mu^n(\dif S^n). \label{eq:base_measure1}
+\end{align}
+Now, let $S$ be a realization of a Poisson process with mean measure $\Lambda$, and assume $\Lambda$ %is finite on $(\cT,\Sigma)$ (i.e.\ $\Lambda(\cT) < \infty$), and that it 
+admits a density $\lambda$ with respect to $\mu$. 
+Writing $|S|$ for the cardinality of $S$, we have:
+\begin{thrm} \emph{(Density of a Poisson process)} \label{thrm:poiss_density}
+  A Poisson process on the space $\mathcal{S}$  with intensity $\lambda(s)$ (where $\Lambda(\cS) = \int_{\cS} \lambda(s) \mu(\mathrm{d} s) < \infty$) is a random variable taking values in $(\Su, \Sigma^{\cup})$ with 
+probability 
+density w.r.t.\ the measure $\muu$
+given by 
+\vspace{-.05in}
+\begin{align}
+  p(S) = \exp(-\Lambda(\cS)) \prod_{j=1}^{|S|} \lambda(s_j)  \label{eq:poiss_prob}
+\end{align}
+\end{thrm}
+\vspace{-.02in}
+For a proof, see~\cite{DalVer2008a}. The density $p(S)$ is called the \emph{Janossy density}, and is %in the point process literature is
+used in the literature to define the Janossy measure. The Janossy measure is not a probability measure, however 
+our definition of $S$ as an ordered sequence ensures %$\muu$ and the ordering of $S$ ensures 
+\begin{align}
+  \int_{\Su} p(S) \muu(\dif S) &= 1.
+\end{align}
+We now return to the \matern type-III process. Recall that events of the augmented primary Poisson process ${F^{+} = (F, T^F)}$ lie in the product space
+$(\cS \times \cT)$, where $\cT$ is the unit interval. % with the usual Borel $\sigma$-algebra.
+Since we order elements by their last coordinate, $F^+$ is a sequence with increasing birth times $T^F$.
+Let $\mu$ be a measure on $(\cS \times \cT)$; when $\cS$ is a subset of $\mathbb{R}^2$, $\mu$ is just 
+Lebesgue measure on $\mathbb{R}^3$. 
+By first writing down the density of the augmented primary Poisson process $F^+$, and then using the thinning construction of the 
+\matern type-III process, we can calculate the probability density of the augmented \matern type-III process ${G^{+} = (G, T^G)}$ with respect to the 
+measure ${\mu}^{\cup}$:
+\begin{thrm}  \label{thrm:mat_dens} Let $G^+ = (G, T^G)$ be a sample from a generalized \matern type-III process, augmented with the birth 
+  times. Let $\lambda$ be its intensity, and $\mathscr{H}(s,t;G^+)$ be its shadow following the appropriate thinning scheme. %, and let  $\mathscr{H}(s,t;G^+$.
+%the process have intensity $\lambda$ and interaction radius $R$. Then, letting $I$ denote the indicator function, 
+Then, its density w.r.t.\  ${\mu}^{\cup}$ is 
+\begin{align}
+ p(G^+ \given \lambda) &=\exp\left(-\lambda \int_{\cS \times \cT}\left( 1 - \mathscr{H}(s,t;G^+)\right)\mu(\dif s \,\dif t)\right)
+              \lambda^{|G^+|}  \nonumber \\
+         & \quad \times  \prod_{g^+ \in G^+} \left( 1 - \mathscr{H}(g^+;G^+) \right).
+\label{eq:mat_marg_prob}
+\end{align}
+\end{thrm}
+We include a proof in the appendix. 
+The product term in the expression above penalizes \matern events that fall within the shadow of earlier events; in fact, for deterministic thinning, such
+an occurrence will have zero probability. The exponentiated integral encourages the shadow to be large, which in turn implies that the events are 
+spread out. Setting the shadow to $0$ recovers the Poisson density of equation~\eqref{eq:poiss_prob}.
+
+A similar result was derived in~\cite{Hube:Wolp:2009}; they express the \matern type-III density with respect to a homogeneous Poisson 
+process with unit intensity. However, their result applied only to the hardcore process. Also, their proof is less direct than ours, proceeding 
+via a coupling from the past construction. It is not clear
+how such an approach extends to the more complicated extensions we introduced above.
+
+Theorem~\ref{thrm:mat_dens} shows that for all parameter settings, the \matern probability measure is absolutely continuous with respect to $\muu$.
+%The existence of this dominating measure $\muu$ 
+Following~\citet[Theorem 3.14]{schervish95}, we can then apply Bayes' theorem, % to calculate posterior densities
+giving the following corollary: % of the previous theorem:
+\begin{coro} \label{prop:mat_post} Let ${G^+ = (G, T^G)}$ be a sample from a \matern type-III process 
+ augmented with its birth times. Let $\lambda$ be its intensity, and $\mathscr{H}(s,t;G^+)$ its shadow.
+%and the radius of interaction be $R$. 
+Then, given $G^+$, the conditional distribution of the locations and birth times of the thinned events
+${\tG^+ = (\tG,T^{\tG})}$ is a Poisson process on ${\cS \times \cT}$, with intensity $\lambda  \mathscr{H}(s,t; G^+)$.
+\end{coro}
+\begin{proof}
+Observe that the primary Poisson process $F^+ = (\tG^+ \cup G^+)$ (where the union of two ordered sequences is their concatenation followed
+by reordering).  The joint $p(\tG^+, G^+)$ is the density of $F^+$ multiplied by the
+probability that the elements of $F^+$ are assigned labels `thinned' or `not thinned'. 
+The latter depends on the shadow $\mathscr{H}$, and it follows easily from Theorem~\ref{thrm:poiss_density} 
+(see equation~\eqref{eq:mat_joint_app} in the appendix) that:
+\begin{align}
+   p(\tG^+, G^+) &= \exp(-\lambda \mu(\cS \times \cT)) \lambda^{n}  \! \! \! \!\! \prod_{(s,t) \in \tG^+}  \! \! \! \!\mathscr{H}(s,t;G^+)  \! \! \! \! \! \prod_{(s,t) \in G^+}  \! \! \! \!(1- \mathscr{H}(s,t;G^+)). \label{eq:mat_joint}
+\end{align}
+Plugging this and equation \eqref{eq:mat_marg_prob} into Bayes' rule, we have
+\begin{align}
+  p(\tG^+ | G^+) &= \frac{p(\tG^+, G^+)}{p(G^+)} \\ %= \frac{p(F^+)}{p(G^+)}\\
+  &= \exp \left(- \int_{\cS \times \cT} \!\!\!\lambda\, \mathscr{H}(s,t; G^+) \mu(\dif s\ \dif t) \right)
+              \prod_{(\tilde{s},\tilde{t}) \in \tG^+} \lambda \mathscr{H}(\tilde{s}, \tilde{t}; G^+).  \label{eq:mat_post}
+\end{align}
+From Theorem~\ref{thrm:poiss_density}, this is the density of a Poisson process with intensity $\lambda \mathscr{H}(s, t; G^+)$. \hfill ${}_\blacksquare$ % for $x \in S(G)$ and $0$ everywhere else.
+\end{proof}
+
+The result above provides a remarkably simple characterization of the thinned primary events. 
+Rather than having to resort to incremental birth-death schemes that update the thinned Poisson events one at a time~\citep{green03, adamsthesis}, we can 
+jointly simulate all of these from a Poisson process, directly obtaining their number and locations. 
+Such an approach is much simpler and much more efficient, and it is
+central to the MCMC sampling algorithm  we describe in the next section.
+
+The intuition behind this result is that for a type-III process, a point of the primary Poisson process $F$ can
+be thinned only by an element of the secondary process. Consequently, given the
+secondary process, there are no interactions between the thinned events themselves: given the \matern process, the thinned events are just 
+Poisson distributed. Such a strategy does not extend to
+\matern type-I and II processes where the fact that thinned events \emph{can} delete each other means that the posterior is
+no longer Poisson. For instance, for any of these processes, it is not possible for a thinned event to occur by itself within any neighbourhood
+of radius $R$ (else it couldn't have been thinned in the first place). However, two or more events \emph{can} occur together. Clearly such a process is not 
+Poisson, rather it possesses a clustered structure.
+
+
+\section{Bayesian modeling and inference for \matern type-III processes} \label{sec:inf_mat}
+
+%We now show how the apparently complicated dependent thinning in the generative procedure of the \matern type-III process actually allows for
+%efficient inference. 
+
+  In the following, we model an observed sequence of points $G$ as a realization of a \matern type-III process. The parameters governing this are
+the intensity of the primary process, $\lambda$, and the parameters of the thinning kernel, $\theta$. For the hardcore process, $\theta$ is just
+the interaction radius $R$, while with probabilistic thinning, $\theta$ might include an interaction radius $R$, and a thinning
+probability $p$ (with $p = 1$ recovering the hardcore model). 
+%For the case where the thinning probability decays with distance from an event, $\theta$ could be the scale of a decaying kernel. 
+For the softcore process, each \matern event has its own interaction radius which we have to
+infer, and $\theta$ would be this collection of radii. In this case we might also assume that the distribution these radii are drawn from 
+%independently from a Pareto or Gamma distribution with 
+has unknown parameters.
+
+Taking a Bayesian approach, we place priors on the unknown parameters. A natural prior for $\lambda$ is the conjugate Gamma density. The Gamma is also a 
+convenient and flexible prior for the thinning length-scale parameter $R$. For the case of probabilistic thinning where $\theta = (p,R)$, we can place a Beta prior on the 
+thinning probability $p$. For the softcore model, we model the radii as uniformly distributed over $[r_L, r_U]$, and place conjugate
+hyperpriors on $r_L$ and $r_U$. For simplicity, we leave out any hyperparameters in what follows, and writing $q$
+for the prior on $\theta$, we have
+\begin{align}
+  \lambda &\sim \text{Gamma}(a,b) \\
+%  R  &\sim \text{Gamma}(c,d) \\
+  \theta  &\sim q \\
+  F^+ \equiv (F,T^F) & \sim \text{Poisson Process}(\lambda) \\
+  G^+ \equiv (G,T^G) & \sim \text{Thin}(F^+, \theta)
+\end{align}
+Note that $G^+$ includes the \matern events $G$ as well as their birth times $T^G$; however, we only observe $G$. Given $G$, we require the posterior 
+distribution $p(\lambda, \theta \given G)$. 
+We will actually work with the augmented posterior $p(\lambda, \theta, F^+, T^G \given G)$. In particular, we set up a Markov chain whose state 
+consists of all these variables, and whose transition operator is a 
+sequence of Gibbs steps that conditionally update %and which proceeds by sequentially resampling 
+each of these four groups of variables. We describe the four Gibbs updates below.
+
+\subsection{Sampling the thinned events}
+Given the \matern events $G^+$ and the thinning parameters $\theta$, we can calculate the shadow $\mathscr{H}_{\theta}(s,t;G^+)$ 
+(here we make explicit the dependence of $\mathscr{H}$ on~$\theta$).
+Sampling the thinned events $\tG^+$ is now a straightforward application of Corollary~\ref{prop:mat_post}:
+discard the old events, and simulate a new sequence from a Poisson process with intensity $\lambda \mathscr{H}_{\theta}(s,t;G^+)$. 
+%within the shadow  $\mathscr{H}(G^+,R)$ (see \ref{fig:matern3_fig}). %Let the intensity of the primary process be $\lambda$. To resample the thinned events, $\tF^+$, 
+%`likelihood' rejects any configuration of $\tF^+$ with 
+%Recalling that the primary process is a sample from a homogeneous Poisson process with intensity $\lambda$, %while the effect of the %current values of $\{G, T_m, \lambda_m, R_m\}$ 
+%and deleting any events outside the shadow of $G^+$. \ref{cor:thin} of the thinning theorem then suggests 
+%it might appear that the thinned events are distributed as the Poisson process restricted to the shadow $\mathscr{H}(G^+,R)$. 
+%The next proposition verifies that this intuition is correct.
+
+We do this by applying the thinning theorem for Poisson processes (\cite{Lewis1979}, see also Theorem~\ref{thrm:Thin}). 
+In particular, we first sample %resampled the thinned events $\tG^+$ exploiting the independence properties of the Poisson process. In particular, we sampled
+a homogeneous Poisson process with intensity $\lambda$ on $(\cS \times \cT)$ and keep each point $(s,t)$ of this process with probability 
+$\mathscr{H}_{\theta}(s, t;G^+)$. The surviving points form a sample
+from the required Poisson process. For models with deterministic thinning, $\mathscr{H}_{\theta}$ is a binary function, and the posterior is just a Poisson
+process with intensity $\lambda$ restricted to the shadow. 
+Note that this step eliminates the need for any birth-death steps, and provides a simple and global way to vary the number of thinned events from 
+iteration to iteration. %out all those points that did not lie within $\mathscr{H}(G^+,R)$. It
+%is possible to be more clever about this (eg.\ by covering $\mathscr{H}(G,R)$ with a disjoint set of rectangles). We found this
+%additional complexity to be unnecessary for the values of $\lambda$ and $\mu(\cS \times \cT)$ that we considered.
+
+\subsection{Sampling the birth times of the \matern events}
+%Having reconstructed the primary Poisson process $F^+$, we next want to resample the birth
+%times $T^G$ of the \matern events $G$. 
+From equation \eqref{eq:mat_joint}, we see that the birth times $T_G$ of the \matern events have density
+\begin{align}
+ p(T^G | G, F^+, \lambda, \theta) &\propto %\exp \left(-\lambda \int_{\cS \times \cT} \mathscr{H}(s,t;G^+) \mu(\dif s \dif t)  \right)
+              \prod_{({s}, {t}) \in G^+} \left(1 - \mathscr{H}({s},{t};G^+) \right)
+              \prod_{({s}, {t}) \in \tG^+} \mathscr{H}({s},{t};G^+)  \label{eq:birth_joint}
+\end{align}
+%The first term on the right says that the probability of any configuration of birth times decreases exponentially with the area of the resulting shadow. 
+A simple Markov operator that maintains equation \eqref{eq:birth_joint} as its stationary distribution is a Gibbs sampler that
+updates the birth times one at a time. For each \matern event~${g \in G}$, we look at all primary events (thinned or not) within
+distance $r^g$ (where $r^g$ is the interaction radius associated with $g$). The birth times of these events segment the unit interval into a number of regions, 
+and the birth time $t^g$ of $g$ is uniformly distributed within each interval (since as $t^g$ moves over an interval, the shadow at all 
+primary events remains unchanged). 
+As $t^g$ moves from one segment to the next, one of the primary events moves into or out of the shadow of $g$. The probability of any interval is then proportional to
+the probability that these neighboring events are assigned their labels `thinned' or `not thinned' under the shadow that results when $g$ is assigned to that 
+interval; this is easily calculated for each thinning mechanism.
+%The expression above shows an equivalence between sampling the birth times $T_{G}$ of the \matern events and a 
+%any \matern event $g \in G^+$ reduces to sampling a latent variable in a 
+%classification problem with the \matern events and thinned events corresponding to the two classes. 
+%In particular, the birth times of the \matern
+%events affect the class probabilities 
+%at any location via the \matern shadow. %term encourages the new shadow to contain as many thinned primary points as possible. 
+%, conditionally resampling these one at a time for all elements of $G$. 
+%For a \matern event, we have the additional constraint that its resampled birth time does not expose any thinned event to
+%lie outside the resulting shadow $\mathscr{H}$ (see \ref{fig:matern3_fig}). 
+%In this case, for element $g \in G$, $t^G_g$ has an piecewise-exponential $1$-dimensional density that is easy to sample from. 
+%We can easily prove this the way we proved Proposition \ref{prop:mat_post}. 
+%algorithm to jointly resample the labels of the underlying Poisson process, we can no longer easily produce a joint update of the birth times 
+%$T^G$ that is conditionally independent of
+%the previous values. 
+For instance, in the \matern process with deterministic thinning, %the two classes have to lie out of, and in the \matern shadow. Thus, for any $g \in G$,
+the birth time $t^g$ is uniformly distributed on the interval $[0, t_{min}]$, 
+where $t_{min}$ is the time of the oldest event that is thinned only by $g$ ($t_{min}$ equals $1$ if there is no
+such event). 
+%For the general case, one can sample from the one-dimensional distribution of $t^g$ using rejection sampling, or a more complicated slice sampler.
+
+While it is not hard to develop more global moves, we found it sufficient to sweep through the \matern events, 
+sequentially updating their birth times. This, together with jointly updating all thinned event locations and birth times was 
+enough to ensure that the chain mixed rapidly. 
+
+
+\subsection{Sampling the Poisson intensity} \label{sec:Poiss_int_inf}
+Having reconstructed the thinned events, it is easy to resample the intensity  $\lambda$.
+Note that the number of primary events $|F|$ is Poisson distributed with intensity $\lambda$. 
+With a conjugate Gamma$(a,b)$ prior on the Poisson intensity $\lambda$, %as we saw in \ref{ch:Chapter5}, this is 
+%conjugate to the primary Poisson
+%process and results in a 
+the posterior is also Gamma distributed, with parameters %$Gamma(a_{post}, b_{post})$ posterior where 
+$a_{post} = a + |F|$,
+$\frac{1}{b_{post}} = \frac{1}{b} + \frac{1}{\mu(\cS)}$. %; $\mu$ being the Lebesgue measure.
+
+\subsection{Sampling the thinning kernel parameter $\theta$}
+Like the birth times $T^G$, the posterior distribution of $\theta$ follows from equation \eqref{eq:mat_joint}. For a prior $q(\theta)$, 
+the posterior is just 
+\begin{align}
+ p(\theta | G^+, F^+, \lambda) &\propto  q(\theta) 
+           \!\!\!   \prod_{({s}, {t}) \in G^+}\!\!\! \left( 1 - \mathscr{H}_{\theta}({s},{t};G^+)\right)  
+           \!\!\!   \prod_{({s}, {t}) \in \tG^+}\!\!\! \mathscr{H}_{\theta}({s},{t};G^+)  
+\end{align}
+Again, sampling $\theta$ is equivalent to sampling a latent variable in a two-class classification problem,
+with the \matern events and thinned events corresponding to the two classes. Different values of $\theta$ result in different shadows
+$\mathscr{H}_{\theta}(\cdot; G^+)$, and the likelihood of $\theta$ is determined by the probability of the labels
+under the associated shadow.
+For the models we consider, this results in a simple piecewise-parametric posterior distribution.
+
+For the \matern hardcore process, ${\theta = R}$ is the interaction radius, whose posterior distribution is a truncated version of the prior.
+The lower bound requires that no thinned event lies outside the new shadow, while the upper bound
+requires that no \matern event lies inside the shadow. %We place a uniform, noninformative prior on $R$. 
+%The resulting density is a truncated Gamma distribution; 
+Sampling from this is straightforward. %(eg.\ by calculating the distribution function). 
+The same applies for the softcore model, only now, each \matern event has
+its own interaction radius, and we can conditionally update them. {Given the set of radii, updating any hyperparameters of $q$ is easy}.
+Finally, for the model with probabilistic thinning, we have $\theta = (p,R)$. To simulate $R$, we segment the positive real line into a finite number of segments, with
+the endpoints corresponding to values of $R$ when a primary event moves into the shadow of a \matern event. Over each segment, the likelihood remains constant.
+It is a straightforward matter to sample a segment, and then conditionally simulate a value of $R$ within that segment.
+%, the posterior over $R$ is a piecewise Gamma distribution,
+%with each segment corresponding to one of the \matern events entering the shadow of another. 
+To simulate $p$, we simply count how many opportunities to thin events were taken or missed, and with a Beta prior on $p$, the posterior follows easily.
+%just  and we can use slice sampling to update the thinning kernel parameters.
+
+
+\section{Experiments}
+  \begin{figure}
+  \begin{minipage}[h]{0.32\linewidth}
+  \centering
+    \includegraphics[width=0.99\textwidth]{figs/swedish.pdf} 
+  \end{minipage}
+  \begin{minipage}[h]{0.32\linewidth}
+  \centering
+  \includegraphics[width=0.99\textwidth]{figs/mild1.pdf}
+  \end{minipage}
+  \begin{minipage}[h]{0.32\linewidth}
+  \centering
+  \includegraphics[width=0.99\textwidth]{figs/mod1.pdf}
+  \end{minipage}
+  \caption[Post Pred]{(Left): Swedish pine tree dataset. (Center and right): Nerve fiber entry points for mild and moderate neuropathy.}
+  \label{fig:diab}
+  \end{figure}
+  We start with the classic Swedish pine tree dataset~\citep{Ripley88},
+available as part of \texttt{R} package \texttt{spatstat}~\citep{spatstat}. 
+This consists of the locations of $71$ trees which we normalized to lie in a $10$-by-$10$ square (see figure~\ref{fig:diab}(left)), 
+and which we modeled as a realization of a \matern type-III hardcore point process. 
+We placed a $\text{Gamma}(1,1)$ prior on the intensity $\lambda$ (noting there are about $100$ points in a $10\times10$ square), and a flat prior on 
+the radius $R$ (noting that $R$ cannot exceed the minimum separation of the \matern events). 
+All results were obtained from $10000$ iterations of our MCMC sampler after discarding the first
+$1000$ samples as burn-in. 
+A Matlab implementation of our sampler 
+on an Intel Core 2 Duo $3$Ghz CPU took around a minute to produce $10000$ MCMC samples.
+To correct for correlations across MCMC iterations, and to assess mixing for our MCMC sampler, we used software from~\cite{Rcoda2006} to
+estimate the effective sample sizes (ESS) of the various quantities; this gives the number of independent samples with the same information content as
+the MCMC output.
+Table~\ref{tab:ess_mat_hc} shows these values, suggesting our sampler mixes rapidly.
+
+  \begin{figure}
+  \begin{minipage}[h]{0.233\linewidth}
+  \caption[Posterior distributions of the homogeneous \matern type-III hardcore model for the Swedish pine tree dataset]
+  {Swedish tree dataset:  \matern hardcore posteriors of intensity, thinning radius, and number of thinned events}
+  \label{fig:swedish_hc_post}
+  \end{minipage}
+  \begin{minipage}[h]{0.25\linewidth}
+  \centering
+    \includegraphics[width=0.99\textwidth]{figs/plot_swedish_l_hc.pdf} 
+  \end{minipage}
+  \begin{minipage}[h]{0.25\linewidth}
+  \centering
+    \includegraphics[width=0.99\textwidth]{figs/plot_swedish_r_hc.pdf} 
+  \end{minipage}
+  \begin{minipage}[h]{0.25\linewidth}
+  \centering
+    \includegraphics[width=0.99\textwidth]{figs/swed_hc_num_prim.pdf} 
+  \end{minipage}
+  \end{figure}
+
+The left and center plots in figure~\ref{fig:swedish_hc_post} show the posterior distributions over $\lambda$ and $R$ %produced by our sampler 
+for the Swedish dataset.
+Recall that the area of the square is $100$, while the dataset has $71$ \matern events.
+The fact that the posterior over the intensity $\lambda$ concentrates around 
+$0.8$ suggests that the number of thinned events is small. This is confirmed by the rightmost plot 
+of figure~\ref{fig:swedish_hc_post} which shows the posterior distribution over the number of thinned  points is less than $10$.
+\begin{table}
+  \caption{\label{tab:ess_mat_hc}Effective sample sizes (per 1000 samples) for the \matern type-III process } %\caption
+\centering
+%\hspace{-0.45in}
+\fbox{%
+\begin{tabular}{|c|c|c|}
+\hline
+ & Swedish pine dataset & Nerve fiber data\\
+ & (Hardcore model) & (Probabilistic thinning)\\
+ %& Redwood dataset & Swedish pine dataset \\
+\hline
+\matern interaction radius &  $344.51$ & $121$\\
+%\matern interaction radius & $473.64$ & $344.51$\\
+\hline
+Latent times (averaged across observations) & $989.4$ &  $880.1$\\
+%Latent times (averaged across observations) & $998.9$ & $989.47$\\
+\hline
+Primary Poisson intensity & $954.7$ & $680.2$ \\
+%Primary Poisson intensity & $988.93$ & $954.7$\\
+\hline
+\end{tabular}}
+\end{table}
+While the data in figure~\ref{fig:diab} are clearly underdispersed, few thinned events suggests a weak repulsion.
+This mismatch is a consequence of occasional nearby events in the data, and the fact that the hardcore model requires
+all events to have the same radius. Consequently, the interaction radius must be bounded by the minimum inter-event distance.
+%since otherwise one of the observations would have deleted the other.
+%Here, all events have the same interaction radius, and a pair of nearby events (see the lower right corner) will force all other
+%points to have small radii.
+%  reason for this can be seen 
+ Figure~\ref{fig:swedish_hc_post} (middle) shows that under the posterior, the interaction radius is bounded around $0.2$, much less than
+ the typical inter-event distance.
+%since thinned events are restricted to lie within this shadow, we have a small number of thinned events. 
+%This suggests that a hardcore model with a single interaction radius is inappropriate for these datasets. 
+%Another limitation with the hardcore model can be seen for the redwood dataset. Though our model is
+%homogeneous, this dataset is clearly is not. We address this second issue in the next section. 
+
+  Figure~\ref{fig:swed_L_pred} quantifies this lack of fit, % which plots the J- and L- functions for the pinetree dataset.
+  showing Besag's L-function $L(r)$~\citep{Besag77}.
+  For convenience, by $L(r)$ we mean~${L(r) - r}$, which measures the excess number events (relative to a Poisson process) within 
+  a distance $r$ of an arbitrary event. We estimated this (and other statistics) using the \texttt{spatstat} package. 
+  A Poisson process has ${L(r) = 0}$, while
+  ${L(r) < 0}$ indicates greater regularity than Poisson at distance $r$. 
+The continuous magenta line in the subplots shows the empirical $L(r)$ as a function of distance $r$.
+%for the pine tree dataset. 
+  We see that the pine tree data are much more regular than Poisson, especially over distances between $0.5$ to $1.5$, where a clear repulsive trend is seen.
+  The blue envelope in the top left subplot shows the posterior predictive distribution of the L-function 
+  from the type-III hardcore process. For this, at each MCMC iteration we generated a new realization of the hardcore process with the 
+  current parameter values, and estimated $L(r)$ for that. The dashed line is the mean $L(r)$ across MCMC samples, while the two bands show $25\%$-$75\%$ and
+  $2.5\%$-$97.5\%$ values. % (the second interval is produced by \texttt{spatstat}).
+  While the data are repulsive, the predictive intervals for the hardcore process in figure~\ref{fig:swed_L_pred} do not match the trend observed in the data, 
+  corresponding instead to a Poisson process with a small $R$. %The hardcore model does not capture this.
+
+
+  \begin{figure}
+  \begin{minipage}[h]{0.22\linewidth}
+  \caption[Post Pred]{Posterior predictive values of L-functions for the Swedish pine tree dataset. (Top left) is the \matern hardcore model,
+  (top right) is the softcore model, and (bottom left) is probabilistic thinning. (Bottom right): predictive values for a Strauss process fit.}
+  \label{fig:swed_L_pred}
+  \end{minipage}
+  \ \ \ 
+  \begin{minipage}[h]{0.6\linewidth}
+  \begin{minipage}[h]{0.49\linewidth}
+  \centering
+  %\includegraphics[width=0.99\textwidth]{figs/Jfunc_postpred_R10/swed_hc_Lfunc.pdf} Original files are here
+  \includegraphics[width=0.99\textwidth]{figs/swed_hc_Lfunc.pdf}
+  \end{minipage}
+  \begin{minipage}[h]{0.49\linewidth}
+  \centering
+  \includegraphics[width=0.99\textwidth]{figs/swed_sc_Lfunc.pdf}
+  \end{minipage}
+  \begin{minipage}[h]{0.49\linewidth}
+  \centering
+  \includegraphics[width=0.99\textwidth]{figs/swed_prob_full_Lfunc.pdf}
+  \end{minipage}
+  \begin{minipage}[h]{0.49\linewidth}
+  \centering
+  \includegraphics[width=0.98\textwidth]{figs/swed_gibbs_Lfunc.pdf}
+  \end{minipage}
+  \end{minipage}
+  \end{figure}
+We next fit the data using the softcore model 
+(where each \matern event has its own interaction radius). 
+We allowed the radii to take values in the interval $[r_L,r_U]$, and placed conjugate priors on these limits of this interval.
+Figure~\ref{fig:swed_L_pred}(top right) shows the posterior predictive intervals for the $L$ functions, and while we do see some of the trends present
+in the data, the fit is still not adequate. The problem now is that typical inter-event distances in the data are around $.5$ to $1$; however the 
+presence of a few nearby points requires a small lower-bound $r_L$. 
+The model then predicts many more nearby points than are observed in the data.
+
+One remedy is to use some other distribution over the radii (e.g., a truncated Gaussian),
+so that rather than driving the \matern parameters, occasional nearby events can be viewed as atypical.
+%While it is not hard to implement and investigate such a scheme, 
+Instead, we use our new extension with probabilistic thinning. We use the simplest version,
+with an interaction radius $R$ common to all \matern events, and a thinning probability $p$.
+We place a unit mean $\text{Gamma}(1,1)$ %this. There is also the unknown thinning probability ${p}$: % \in [0,1]}$ characterizing the strength of the interactions: %, with
+%all subsequent events within distance $R$ of an event $g$ having a probability $p$ of being thinned by $g$. 
+and a flat $\text{Beta}(1,1)$ prior on these.
+As before, we place a  $\text{Gamma}(1,1)$ prior on the Poisson intensity $\lambda$.
+
+% To assess the effect of $p$, we first set it to different values, and look at the resulting distribution over $R$. We work with the Swedish pine tree data set.
+% For $p = 1$, we recover the hardcore model, and get a posterior similar to figure \ref{fig:swedish_hc_post}(left)\footnote{with 
+% differences arising from placing a $\text{Gamma}$ prior on $R$ (rather than an improper prior).}. For ${p = 0}$, there is no repulsion, and as figure
+% \ref{fig:swedish_prob}(left) shows, the posterior over $R$ reduces to the exponential prior. Finally, figure \ref{fig:swedish_prob}(center) shows the posterior when ${p = 0.75}$.
+% Observe that now we get a larger interaction radius than with the hardcore model. Figure \ref{fig:swedish_prob}(right) shows the actual posterior
+% distribution over the thinning probability $p$ resulting from the Beta prior. This is peaked at $0.75$, suggesting a strong repulsive effect, both in terms of the thinning probability and the
+% interaction radius. This is confirmed by the large number of thinned events (around $125$), and the large Poisson intensity $\lambda$ (around $8$).
+
+Figure~\ref{fig:swed_L_pred}(bottom left) shows the results from our MCMC sampler. 
+The predicted  L-function values now mirror the empirical values much better, and in general we find probabilistic thinning strikes a 
+better balance between simplicity and flexibility. The supplementary material also includes plots for another statistic,
+the J-function~\citep{vanLies96} agreeing with these conclusions.
+Figure~\ref{fig:swedish_prob} plots the posteriors over the interaction radius, the thinning probability and the number of thinned events.
+The first and last are much larger than the hardcore model, and coupled with a thinning probability of around $0.6$ confirm that the data arise
+from a repulsive process. 
+%close to (but not quite equal to) $1$,
+%capturing the fact that the few nearby events are atypical events that should not drive our inferences.
+
+We also estimated point process Fano factors by
+dividing the space into $25$ $2 \times 2$ squares, and counting the number of events falling in each. Our estimate was then the standard 
+deviation of these counts divided by the mean. A Poisson would have this equal to $1$, with values less than one suggesting regularity. The
+rightmost subplot of figure~\ref{fig:swedish_prob} shows the empirical Fano factor (the red circle), as well as posterior predictive values 
+(again obtained by calculating the Fano factors of synthetic datasets generated each MCMC iteration).
+The plots confirm both that the data are repulsive and that the model captures this aspect of repulsiveness.
+
+
+
+  \begin{figure}
+  \centering
+  \begin{minipage}[b]{0.245\linewidth}
+  \centering
+    \includegraphics[width=0.98\textwidth]{figs/plot_swedish_r_prob.pdf} 
+  \end{minipage}
+  \begin{minipage}[b]{0.245\linewidth}
+  \centering
+    \includegraphics[width=0.98\textwidth]{figs/plot_swedish_p_thin.pdf} 
+  \end{minipage}
+  \begin{minipage}[b]{0.245\linewidth}
+  \centering
+    \includegraphics[width=0.98\textwidth]{figs/plot_swedish_num_prob.pdf} 
+  \end{minipage}
+  \begin{minipage}[b]{0.245\linewidth}
+  \centering
+    \includegraphics[width=0.98\textwidth]{figs/plot_swedish_postpred_fano_55_prob.pdf} 
+  \end{minipage}
+  \caption[Posterior distributions of the homogeneous \matern type-III model with probabilistic thinning for the Swedish pine tree dataset]
+      {Swedish tree dataset: posterior distributions of interaction radius $R$ (first), the thinning probability $p$ (second), and the number
+      of thinned events (third). Rightmost is the empirical (circle) as well posterior predictive distribution over the Fano factor.
+  }
+  \label{fig:swedish_prob}
+  \end{figure}
+As a comparison, we also include a fit from a Gibbs-type process (a Strauss process, in particular) in the bottom right of 
+figure~\ref{fig:swed_L_pred}. These
+predictions of the L-function were produced from an approximate MLE fit (in particular, a maximum pseudolikelihood estimate
+using routines from \texttt{spatstat}). For this dataset, the fit is comparable with
+that of the \matern process with probabilistic thinning (though the L- and J-functions are only just contained in the $95\%$ prediction
+band). Our next section considers a dataset where the Strauss process fares much worse.
+\subsection{Nerve fiber data}
+  \begin{figure}
+  \centering
+  \begin{minipage}[h]{0.22\linewidth}
+    \centering \vspace{-.1in}
+  \caption{Posterior distribution over thinning area times thinning probability for mild (left) and moderate (right) neuropathy}
+  \label{fig:rep_inf}
+  \end{minipage}
+  \begin{minipage}[h]{0.3\linewidth}
+  \centering
+  \includegraphics[width=0.98\textwidth]{figs/plot_mild_repuls.pdf}
+  \end{minipage}
+  \begin{minipage}[h]{0.3\linewidth}
+  \centering
+  \includegraphics[width=0.98\textwidth]{figs/plot_mod_repuls.pdf}
+  \end{minipage}
+  \end{figure}
+  \begin{figure}
+  \begin{minipage}[h]{0.24\linewidth}
+  \caption[Post Pred]{(Top row): Posterior predictive values of the L-functions for the \matern model with probabilistic thinning for mild (left) and 
+  moderate (right) neuropathy. (Bottom row): Corresponding predictive values for Strauss process fits.}
+%  \caption[Post Pred]{Posterior predictive values of L-functions for the Swedish pine tree dataset. (Top left) is the \matern hardcore model,
+%  (top right) is the softcore model, and (bottom left) is probabilistic thinning. (Bottom right) is the fit for a Strauss process.}
+  \label{fig:diab_Lfunc}
+  \end{minipage}
+  \centering
+  \begin{minipage}[h]{0.6\linewidth}
+  \begin{minipage}[h]{0.49\linewidth}
+  \centering
+  %\includegraphics[width=0.98\textwidth]{figs/Jfunc_postpred_R10/mild1_prob_full_Lfunc_trunc.pdf}  Used to be like this
+  \includegraphics[width=0.98\textwidth]{figs/mild1_prob_full_Lfunc_trunc.pdf}
+  \end{minipage}
+  \begin{minipage}[h]{0.49\linewidth}
+  \centering
+  \includegraphics[width=0.98\textwidth]{figs/mod1_prob_full_Lfunc_trunc.pdf}
+  \end{minipage}
+  \begin{minipage}[h]{0.49\linewidth}
+  \centering
+  \includegraphics[width=0.98\textwidth]{figs/mild1_gibbs_Lfunc.pdf}
+  \end{minipage}
+  \begin{minipage}[h]{0.49\linewidth}
+  \centering
+  \includegraphics[width=0.98\textwidth]{figs/mod1_gibbs_Lfunc.pdf}
+  \end{minipage}
+  \end{minipage}
+  \end{figure}
+For our next experiment, we consider a dataset of nerve fiber entry locations recorded from patients suffering from diabetes~\citep{WallSar11}.
+Figure~\ref{fig:diab} plots these data for two patients at two stages of neuropathy, mild and moderate.
+  As noted in~\cite{WallSar11}, there is an increased clustering moving from mild to moderate, and this is confirmed by figure~\ref{fig:diab_Lfunc}, 
+  which shows the empirical values for the L-function (solid magenta lines).
+  Also included are posterior predictive values obtained from $10000$ posterior samples from the \matern model with probabilistic
+  thinning. 
+  The left plots for mild neuropathy show a repulsive effect (especially a dip in the L-function  around 
+  the $0.5$ mark), and this is captured by the model. 
+  By contrast, the moderate case exhibits repulsion and clustering at different scales, and the model settles with a Poisson process whose
+  predictive intervals include such behavior.
+
+To show the difference in the fits for the two conditions, at each MCMC iteration we calculate a statistic measuring repulsive influence: the thinning 
+probability multiplied by the squared interaction radius. Figure~\ref{fig:rep_inf} plots this for the two cases, and we see that there is more
+repulsion for the mild case. Another approach is to fix the thinning probability (to say $0.75$), and plot the posterior distributions over the
+interaction radius. We get similar results, but have not reported them here. Distributions like these are important diagnostics towards
+the automatic assessment of neuropathy.
+
+  Figure~\ref{fig:diab_Lfunc} shows fits for a Strauss process: this is much
+  worse, with the estimate essentially reducing to a Poisson process. 
+  The failure of this model has partly to do with the fact that it is not as flexible as our \matern model
+  with probabilistic thinning; another factor is the use of an MLE estimate as opposed to a fully Bayesian posterior.
+  While it is possible to use a more complicated Gibbs-type process, inference (especially Bayesian inference) becomes
+  correspondingly harder. Furthermore, as we demonstrate next, it is easy to incorporate nonstationarity into \matern
+  processes; doing this for a Gibbs-type process is not at all straightforward. In the supplementary material, we include similar
+  results for the J-function as well.
+  In~\cite{WallSar11}, the authors obtain maximum likelihood estimates of the interaction radius $R$ of a \matern type-II hardcore process.
+  Our Bayesian approach can be naturally extended to allow variability among patients through hierarchical modeling. In the next section,
+  we show how it can incorporate spatial inhomogeneity as well.
+
+\section{Nonstationary \matern processes}  \label{sec:inhom_mat}
+In many settings, it is useful to %, suggested in \citep{adamsthesis}, %and which follows naturally from ideas in \ref{ch:Chapter5}, 
+incorporate nonstationarity into repulsive models. %A common requirement is to allow variation in the 
+%intensity of the \matern events; 
+For example, factors like soil fertility, rainfall and terrain can affect the density of trees at different locations. 
+We will consider a dataset of locations of Greyhound bus stations: to allocate resources efficiently, these will be underdispersed.
+At the same time, one expects larger intensities in urban areas than in more remote ones.
+In such situations, it is important to account for nonstationarity while estimating repulsiveness.
+%, or perhaps in the nature of the repulsion.
+%this would be suitable for the redwood dataset, for instance, where the number of trees in some regions is clearly much less than in others.
+
+
+
+
+A simple approach is %via the intensity $\lambda$ of the primary Poisson process. Instead of forcing
+%this to be constant, we 
+to allow the intensity of the primary Poisson $\lambda(s)$ to vary over~$\cS$. %, letting the primary process be inhomogeneous. 
+A flexible model of such a nonstationary intensity function is a transformed Gaussian process.
+%on the
+%intensity function $\lambda(s)$. 
+%Letting %$\mu(\cdot)$ and 
+Let $\mathcal{K}(\cdot,\cdot)$ be the %mean and 
+covariance kernel of a Gaussian process, $\hlambda$ a positive scale parameter, and 
+$\sigma(x)=(1+\exp(-x))^{-1}$ the sigmoidal transformation. Then~$\lambda(\cdot)$ is a random function defined as
+  \begin{align}
+    \lambda(\cdot) = \hlambda \sigma(l(\cdot)), \quad
+    l(\cdot) \sim \mathcal{GP}(0,\mathcal{K})\label{eq:sig_mod}
+  \end{align}
+  This model is closely related to the log-Gaussian Cox process, with a sigmoid link function instead of an exponential.
+The sigmoid transformation serves two purposes: to ensure that the intensity $\lambda(s)$ is nonnegative, and
+to provide a bound $\hlambda$ on the Poisson intensity. As shown in~\cite{adams-murray-mackay-2009b}, such a bound makes drawing events from the 
+primary process possible by a %, $Poiss(\lambda(x))$ is a 
+clever application of the thinning theorem. %(thus avoiding the need to evaluate integrals of the random function $\lambda(s)$). % as Theorem \cite{thrm:poiss_density} might suggest. 
+We introduced the thinning theorem in section~\ref{sec:inf_mat}; we state it formally below.
+\begin{thrm}[Thinning theorem,~\cite{Lewis1979}]
+ Let $E$ be a sample from a Poisson process with intensity $\hlambda(s)$.
+For some nonnegative function ${\lambda(s) \le \hlambda(s) \, \forall s \in \cS}$, assign each
+point $e \in E$ to $F$ with probability $\frac{\lambda(e)}{\, \hlambda(e)}$.
+%and to set $\tF$ with probability $\left(1 - \frac{\lambda(e)}{\, \hlambda(e)}\right)$. 
+ Then $F$ is a draw from a Poisson process with intensity $\lambda(s)$. \label{thrm:Thin}
+\end{thrm}
+%In \cite{adams-murray-mackay-2009b}, the thinning theorem was explointed so that the unknown function needed to be evaluated only on a finite set of locations.
+From equation \eqref{eq:sig_mod} we have ${\hlambda \ge \lambda(s)}$. Following the thinning theorem, 
+one can obtain a sample from the rate $\lambda(s)$ inhomogeneous Poisson process by thinning a random sample $E$ from a rate $\hlambda$ homogeneous
+Poisson process. This allows us to instantiate the random intensity $\lambda(s)$ only on the elements of $E$,
+avoiding any need to evaluate integrals of the random function $\lambda(s)$. We then have the
+following retrospective sampling scheme: sample a homogeneous Poisson process with intensity $\hlambda$, and instantiate the Gaussian process $l(\cdot)$ on this sequence.
+Keeping each element $e$ with probability ${\sigma(l(e))}$, 
+we have an \emph{exact} sample from the inhomogeneous primary process. Call this $F$, and call the thinned events $\tF$. 
+We can then use any of the \matern thinning schemes outlined previously to further thin $F$, resulting in an inhomogeneous repulsive process $G$.
+There are now two stages of thinning, the first is an application of the 
+Poisson thinning theorem to obtain the inhomogeneous primary process $F$ from the homogeneous Poisson process $E$, and the second, the \matern 
+thinning to obtain $G$ from $F$. Algorithm~\ref{alg:inhom_mat} outlines the generative process of an inhomogeneous \matern type-III process.
+\begin{algorithm}
+\caption{Algorithm to sample an inhomogeneous \matern process on $\cS$.} \label{alg:inhom_mat}
+\vspace{-.1in}
+\begin{tabular}{p{1.4cm}p{12.2cm}}
+\textbf{Input:}  & A Gaussian process prior $\mathcal{GP}(0, \mathcal{K})$ on the space $\cS$, a constant $\hat{\lambda}$ and \\
+                 & the thinning kernel parameters $\theta$. \\
+\textbf{Output:} & A sample $G$ from the nonstationary \matern type-III process. \\
+\rule[0.5ex]{33em}{0.55pt}
+\end{tabular}
+\begin{algorithmic}[1]
+\State Sample $E$ from a homogeneous Poisson process with intensity $\hat{\lambda}$.
+\State Instantiate the Gaussian process $l(\cdot)$ on these points. Call vector $l_E$.
+\State %Let $\lambda_E = \sigma(l_E)$. 
+       Keep a point $e \in E$ with probability $\sigma(l(e))$, otherwise thin it. The surviving points form the primary process $F$.
+\State Assign $F$ a set of random birth times $T^F$, independently and uniformly on $[0,1]$.
+%\State Assign $F$ a set of random interaction radii $R^F$ i.i.d.\ from $p(R)$.
+%\State Sample the parameter $\theta$ from $q$.
+\State Proceed through elements of $F$ in order of birth. At each element, evaluate the shadow of the previous surviving elements,
+       and keep it or thin it as appropriate.
+%deleting any event that lies within a radius $r^F_i$ of an earlier, undeleted event $i$.
+\State The surviving points $G$ form the inhomogeneous \matern type-III point process.
+\vspace{-.1in}
+\end{algorithmic}
+\end{algorithm}
+\\As in section~\ref{sec:inf_mat}, we place priors on $\hlambda$ as well as $\theta$. We also place hyperpriors on the hyperparameters of the GP covariance kernel. 
+
+\subsection{Inference for the inhomogeneous \matern type-III process}
+
+
+%  \citep{adamsthesis} defined an inhomogeneous softcore \matern process similar to the model in the \ref{alg:inhom_mat} (their model introduced softcore repulsions by 
+% probabilistic thinning, instead of the independent interaction radius approach we took). To perform posterior inference given the \matern events, they defined 
+% an MCMC algorithm that proceeded via an incremental birth-death process. More specifically, conditioned on all other variables (including the GP values $l_E$), they defined 
+% Metropolis-Hastings proposals by randomly adding to or deleting elements from the thinned sets $\tilde{G}$ and $\tilde{F}$ (here, $G \cup \tilde{G} = F$ and $F \cup \tilde{F} = E$). 
+% They also defined proposals that perturbed the locations of the elements of these sets.
+% After updating the set $E$, they could perform inference on the latent GP values, and $\hlambda$. %Conceptually however, they took a slightly different view of their model; 
+% Additionally, rather than inducing an ordering on $F$ indirectly via a set of birth times, they directly defined a random permutation on the elements of $F$. Inference on this 
+% permutation proceeded via moves that select and attempt to swap pairs of elements in the permutation. All these moves listed above are local and incremental, and can result 
+% in very poor mixing.
+
+Proceeding as in section~\ref{sec:matern_pdf},
+it follows that the events $\tG^+$ thinned by the repulsive kernel are conditionally distributed as an inhomogeneous Poisson process with 
+intensity $\lambda(s) \mathscr{H}(s,t;G^+)$ (with the $\lambda$ from corollary~\ref{prop:mat_post} replaced by $\lambda(s)$). From the thinning theorem, simulating from such a process is a simple matter of thinning events of a homogeneous,
+rate $\hlambda$ Poisson process, exactly as outlined in 
+the previous section. Having reconstructed the inhomogeneous primary Poisson process, the update rules for the birth times $T_G$, and the thinning kernel parameters 
+$\theta$ are identical to the homogeneous case. 
+
+The only new idea 
+involves updating the random function $\lambda(s)$ (more precisely, the latent GP, $l(s)$, and the scaling factor, $\hlambda$). 
+To do this, we first instantiate $\tF$, the events of $E$ thinned in constructing the inhomogeneous primary process $F$.
+%ference for the nonstationary model is identical to that for the stationary model, with an additional Gibbs step that updates the thinned events of the 
+%primary Poisson process. 
+For this step,~\citet{adams-murray-mackay-2009b} constructed a Markov transition kernel, involving a set of birth-death moves that updated the number of thinned 
+events, as
+well as a sequence of moves that perturbed the locations of the thinned events. This kernel was set up to have as equilibrium distribution the required
+posterior over the thinned events. 
+Instead, similar in spirit to our idea of jointly simulating the thinned \matern events, it is possible to produce a conditionally independent sample of $\tF$.
+Instead of a number of local moves that perturb the current setting of $\tF$ in the Markov chain, we can discard the old thinned
+events, and jointly produce a new sample given the rest of the variables. 
+The required joint distribution is given by the following corollary of Theorem~\ref{thrm:Thin}:
+\begin{coro} \label{prop:thin_post} Let $F$ be a sample from a Poisson process with intensity $\lambda(s)$, produced
+by thinning a sample $E$ from a Poisson process with intensity $\hlambda$. Call the thinned events $\tF$. Then given $F$, $\tF$ is a 
+Poisson process with intensity $\hlambda - \lambda(s)$.
+\end{coro}
+\begin{proof}
+A direct approach uses the Poisson densities defined in Theorem~\ref{thrm:poiss_density}. More intuitive is the following: by symmetry, the
+thinning theorem implies that the thinned events $\tF$ are distributed as a Poisson process with intensity $\hlambda - \lambda(s)$. By the
+independence property of the Poisson process, $F$ and $\tF$ are independent, and the result follows.
+\end{proof}
+%We saw in \ref{sec:ren_mcmc} how we could jointly resample $\tilde{F}$, the Poisson events deleted in the first thinning stage that produced the inhomogeneous Poisson process
+%$F$ from $E$. 
+Applying this result to simulate the thinned events $\tF$ is a straightforward application of the thinning theorem: 
+sample from a homogeneous Poisson process with intensity $\hlambda$, conditionally instantiate the function $\lambda(\cdot)$ on these points (given its values on $F$), 
+and keep element $\tilde{f}$ with probability $1 - \sigma(\tilde{f})$. 
+%Similarly, following \ref{sec:inf_mat}, we can easily see how to resample the \matern\!-thinned events $\tG$: these can be sampled
+%from a Poisson process with intensity $\lambda(\cdot)$ restricted to the shadow $\mathscr{H}(G^+)$.
+
+Having reconstructed the sequence $E = F \cup \tF$, we can update the values of the GP instantiated on $E$. 
+Recall that an element $e \in E$ is assigned to $F$ with probability~$\sigma(l(s))$, otherwise it is
+assigned to $\tF$. Thus updating the GP reduces to updating the latent GP in a classification problem with a sigmoidal link function.
+There are a variety of sampling algorithms to simulate such a latent Gaussian process, in our experiments we used the elliptical slice sampling from 
+\cite{murray2010}. Finally, as the number of elements of $E$ is Poisson distributed with rate $\hlambda$, a Gamma prior results in a Gamma posterior as 
+in section~\ref{sec:Poiss_int_inf}.
+%Finally, we resampled the marks of the \matern events (viz.\ their birth times and interaction radii) incrementally as described in \ref{sec:inf_mat}.
+%We can combine this with the ideas presented in to jointly resample the \matern\!-thinned events; giving a simple and efficient MCMC sampler for our model above. 
+We describe our overall sampler in detail in algorithm~\ref{alg:mat_np_inf}.
+\algblock[sampleG]{StartG}{EndG}
+\algrenewtext{StartG}{\textbf{1: Sample the \matern thinned events $\tG^+$}}
+\algrenewtext{EndG}{}
+
+\algblock[sampleF]{StartF}{EndF}
+\algrenewtext{StartF}{\textbf{2: Sample the Poisson thinned events $\tF$}}
+\algrenewtext{EndF}{}
+
+\algblock[sampleMisc]{StartMisc}{EndMisc}
+\algrenewtext{StartMisc}{\textbf{3: Sample the \matern birth times}}
+\algrenewtext{EndMisc}{}
+
+\algblock[sampleParam]{StartParam}{EndParam}
+\algrenewtext{StartParam}{\textbf{5: Sample the parameters $\hlambda$ and $\theta$}}
+\algrenewtext{EndParam}{}
+
+
+\begin{algorithm}
+\caption{MCMC update for inhomogeneous \matern type-III process on $\cS$.}
+\vspace{-.1in}
+\begin{tabular}{p{1.4cm}p{12.2cm}}
+\textbf{Input:}  & \matern events with birth times $G^+ \equiv (G,T^G)$, \\
+    & Thinned primary events $\tG^+ \equiv (\tG,T^{\tG})$ and thinned Poisson events $\tilde{F}$, \\
+    & A GP realization $l_E$ on $E \equiv G \cup \tG \cup \tF$, and parameters $\hlambda$ and $\theta$.  \\
+%Gaussian process prior $\mathcal{GP}(\mu, K)$ on the space $\cS$ and a constant $\hat{\lambda}$. \\
+\textbf{Output:} & New realizations $T^G_{new}$, $\tG_{new}^+$, $\tF_{new}$, $\hlambda$ and $\theta$. \\
+    &  A new instantiation of the GP on $G \cup \tG_{new} \cup \tF_{new}$. \\
+\rule[0.5ex]{33em}{0.55pt}
+\end{tabular}
+\begin{algorithmic}
+\StartG
+\State  Discard the old \matern thinned event locations $\tG^+$.
+\State Sample events $A^+ \equiv (A, T^A)$ from a rate $\hlambda$ Poisson process on $\cS \times \cT$. 
+\State Sample $l_A | l_E$ (conditionally from a multivariate normal).
+%       Let $\lambda_A = \sigma(l_A)$.
+\State Keep a point $a \in A$ with probability $\sigma(l(a)) \mathscr{H}(a;G^+)$, otherwise thin it. 
+\State The surviving points form the new \matern thinned events $\tG^+_{new}$.
+\State Discard GP evaluations on old \matern events, and add the new ones to $l_E$.
+\EndG
+\vspace{-.15in}
+\StartF
+\State Define $E_{new} \equiv G \cup \tG_{new} \cup \tF$.
+\State  Discard the old thinned primary Poisson events $\tF^+$.
+\State Sample events $B^+ \equiv (B, T^B)$ from a rate $\hlambda$ Poisson process on $\cS \times \cT$. 
+\State Sample $l_B | l_{E_{new}}$ (conditionally from a multivariate normal).
+%       Let $\lambda_B = \sigma(l_B)$.
+\State  Keep a point $b \in B$ with probability $1 - \sigma(l(b))$, otherwise thin it. 
+       The\\ \qquad surviving points form the new Poisson thinned events $\tF_{new}$.
+\State Define $E_{new} \equiv G \cup \tG_{new} \cup \tF_{new}$.
+\EndF
+\vspace{-.15in}
+\StartMisc
+\State   For each \matern event $g$, update birth time $T^G_g$ given all other variables.
+\EndMisc
+\vspace{-.15in}
+\State \label{step:gp_inf}\!\textbf{4: Sample the GP values $l_{E_{new}}$} 
+\State \hspace{.2in} We used elliptical slice sampling~\citep{murray2010}.
+\StartParam
+\State   Sample $\hlambda$ and $\theta$ given the remaining variables.
+\EndParam
+\vspace{-.15in}
+\end{algorithmic}
+\label{alg:mat_np_inf}
+\vspace{-.1in}
+\end{algorithm}
+
+  
+\subsection{Experiments}
+
+We consider a dataset of the locations of $79$ Greyhound bus stations in three states in the southeast United States (North Carolina, South Carolina and 
+Georgia)\footnote{Obtained from \texttt{http://www.poi-factory.com/}.}. Figure~\ref{fig:grey_nc_in}(left) plots these locations along with the inferred intensity function
+from our nonstationary \matern process. We modeled the intensity function $\lambda(\cdot)$ using a sigmoidally-transformed Gaussian process 
+with zero mean and a squared-exponential kernel. We placed log-normal hyperpriors on the 
+ GP hyperparameters ((shape, scale) as $(1,1))$, and a Gamma$(10,10)$ prior on the scale parameter $\hlambda$ (we allowed larger variance since
+ there are two levels of thinning).
+ To ease comparison across two cases, we fixed the thinning probability to $0.75$, and placed a Gamma$(1,1)$ prior on the interaction radius $R$ (which
+ we expect to be less than one degree of latitude/longitude).
+The contours in figure~\ref{fig:grey_nc_in}(left) correspond to the posterior mean of $\lambda(\cdot)$, obtained from $10000$ MCMC samples 
+following algorithm~\ref{alg:mat_np_inf}.
+ We used elliptical slice sampling~\citep{murray2010} to resample the GP values 
+(step~4 %\ref{step:gp_inf} 
+in algorithm~\ref{alg:mat_np_inf}). and the GP hyperparameters were resampled by slice-sampling~\citep{murray2010b}. 
+% Again, all results were from MCMC runs with $10000$ iterations, and a burn-in period of $1000$.
+
+We see a strong nonstationarity, driven mainly by the Atlantic Ocean to the lower right, and the absence of recordings to the top left (in Tennessee).
+Not surprisingly, the intensity function takes large values over the three states of interest. The right subplot shows the same analysis, now
+restricted to North Carolina (with observations in the other states discarded). Here we see more clearly a fine structure in the intensity
+function with two peaks, one in the research triangle area (Raleigh-Durham-Chapel Hill) to the west, and the other corresponding to the Charlotte
+metropolitan area. 
+  \begin{figure}
+  \centering
+  \begin{minipage}[h]{0.45\linewidth}
+  \centering
+    \includegraphics[width=0.99\textwidth, angle=0]{figs/greyhound_NCSCGA_intensity.pdf}
+  \end{minipage}
+  \begin{minipage}[h]{0.48\linewidth}
+  \centering
+    \includegraphics[width=0.99\textwidth, angle=0]{figs/greyhound_intensity_NC.pdf}
+    \vspace{-.3in}
+    \caption{Posterior mean of the intensity for the greyhound dataset: (left) all three states (right) North Carolina}
+  \label{fig:grey_nc_in}
+  \end{minipage}
+  \end{figure}
+
+  \begin{figure}
+  \centering
+  \begin{minipage}[h]{0.23\linewidth}
+  \caption{Posterior over the thinning radius for (left) all three states, and (right) North Carolina}
+  \label{fig:grey_nc_in_rad}
+  \end{minipage}
+  \begin{minipage}[h]{0.28\linewidth}
+    \centering
+    \includegraphics[width=0.98\textwidth, angle=0]{figs/plot_NCSCGA_rad.pdf}
+  \end{minipage}
+  \begin{minipage}[h]{0.28\linewidth}
+  \centering
+    \includegraphics[width=0.98\textwidth, angle=0]{figs/plot_nc_rad_less_labels.pdf}
+  \end{minipage}
+  \end{figure}
+
+  \begin{figure}
+  \centering
+  \begin{minipage}[h]{0.28\linewidth}
+  \caption{Inhomogeneous L-function for the Greyhound dataset: (left) posterior predictive values for nonstationary \matern with probabilistic thinning, and (right)
+  fit of an inhomogeneous Poisson process} 
+  \label{fig:grey_ncscga_lfunc}
+  \end{minipage}
+  \begin{minipage}[h]{0.32\linewidth}
+    \centering
+    \includegraphics[width=0.98\textwidth, angle=0]{figs/greyhound_NCSCGA_matern_L.pdf}
+  \end{minipage}
+  \begin{minipage}[h]{0.32\linewidth}
+  \centering
+    \includegraphics[width=0.98\textwidth, angle=0]{figs/greyhound_NCSCGA_poisson_L.pdf}
+  \end{minipage}
+  \end{figure}
+Figure~\ref{fig:grey_nc_in_rad} plots the posterior distributions over the thinning radius $R$ for both cases (recall that
+since we used a fixed thinning probability of $0.75$, $R$ is a direct measure of the repulsive effect). 
+In both cases, we see this distribution is peaked around $0.15$ to $0.2$ degrees, with the North Carolina dataset having a slightly clearer
+repulsive effect. %, with an interaction radius of around $0.15$ degrees. By contrast, while
+%the Indiana dataset also exhibits some repulsion, it does not clearly rule out a Poisson process. Part of this ambiguity arises
+%because of the cluster of stations in the Chicago area which are more closely clustered than the rest of the state. One the one hand, this suggests that the point processes in the two states have different
+%properties; however, if one wishes to model both point process as having the same repulsive effect,
+For the grouped analysis, we required all three states to share the same unknown $R$ while having their own nonstationarity: more generally, one can 
+use a hierarchical model over $R$ to shrink or cluster the radii across different states. The resulting posterior over $R$ can help understand 
+variations in pricing, reliability and delays, as well as assist towards future developmental work~\citep{Sahin2007}.
+
+Figure~\ref{fig:grey_ncscga_lfunc} compares fits for a nonstationary \matern process and a Poisson process, using the inhomogeneous
+L-function~\citep{Baddely2000}. % (implemented in \texttt{spatstat} as the function \texttt{Linhom}). 
+We see that the Poisson process (to the right) fails
+to capture the empirical values over distances up to around $0.2$ degrees. This agrees with  figure~\ref{fig:grey_nc_in_rad} that repulsion occurs over 
+these distances. The \matern process (to the left) provides a much better fit. %Over longer scales, the emprical value returns back towards $0$, and both models perform comparably. 
+We also include plots for the the nonstationary J-function in the supplementary material. This did not indicate much deviation from Poisson, 
+though as~\cite{Baddely2000} point out, this does not imply that the point process is Poisson. %In any event, both models did near identical jobs 
+%capturing the J-function.
+
+\section{Discussion}
+We described a Bayesian framework for modeling repulsive interactions between events of a point process based on the \matern type-III point process. Such a framework allows flexible and intuitive repulsive effects between events, with parameters that are interpretable and realistic.
+We developed an efficient MCMC sampling algorithm for posterior inference in these models,
+%in inference for the \matern type-III point process, a class of repulsive point processes generated by thinning
+%a primary Poisson process. Our scheme exploits the independence properties of the the Poisson process 
+%to jointly resample thinned events given the \matern events. Having reconstructed the latent Poisson process, we then resample the remaining variables. 
+%We showed how our sampler easily generalizes to more complicated extensions of the \matern type-III process, and as an example, studied an inhomogeneous softcore 
+%\matern type-III process. 
+and applied our ideas to datasets of locations of trees, nerve-fibers and bus-station locations.
+
+
+There are a number of interesting directions worth following.
+While we only considered events in a $2$-dimensional space,
+it is easy to generalize to higher dimensions to model, say, the distribution of galaxies in space or features in some 
+feature space.
+As with all repulsive point processes, very high densities lead to inefficiency (in our case because of very high primary process intensities).
+It is important to better understand the theoretical and computational limitations of our model in this regime.
+While we assumed the \matern events $G$ were observed perfectly, there is often noise into this observation process. In this case, given
+the observed point process $G_{obs}$, we have to instantiate the latent \matern process $G$. 
+Simulating the locations of the events in $G$ would require incremental updates, and if we allow for missing or extra events, we would need a 
+birth-death sampler as well. A direction for future study is to see how these steps can be performed efficiently.
+Having instantiated $G$, all other variables can be simulated as outlined in this paper. 
+A related question concerns whether our ideas can be extended to develop efficient samplers for \matern type I and II processes as well.
+
+Our models assumed homogeneity in the repulsive properties of the \matern events. An interesting extension is to allow, say, the interaction radius or 
+the thinning probability to vary spatially (rather than the Poisson intensity $\lambda(\cdot)$). 
+Similarly, one might assume a clustering of these repulsive parameters; % interaction radius
+%or the thinning probability. 
+this is useful in situations where the \matern observations represent cells of different kinds. 
+%The use of a GP prior for the nonstationary intensity function means that our inhomogeneous model does not directly scale to problems with a very large 
+%number of \matern events. In such situations, there is a need for approximate methods for GP inference, or other, more 
+%tractable priors to model nonstationarity.
+%Finally, it is of interest to obtain a better theoretical understanding of the  properties of the models we proposed. We hope that our demonstration of
+%the practicality and flexibility of these models will stimulate interest in both the theoretical and applied point process modeling communities.
+%Finally, we are interested in applying our ideas to more realistic data, in particular to characterize series of neural spike trains. Another direction
+%involves incorporating \matern repulsiveness in bigger, hierarchical models, for instance to encourage diversity between cluster parameters in a mixture model.
+Finally, it is of interest to apply our ideas to hierarchical models that do not necessarily represent point pattern data, for instance to encourage diversity between cluster parameters in a mixture model.
+
+
+\section{Acknowledgements}
+This work was partially supported by the DARPA MSEE project and by NSF IIS-1421780. We thank Aila S{\"a}rkk{\"a} for providing us with the nerve fiber data. The Greyhound dataset
+was obtained from \texttt{http://www.poi-factory.com/}.
+\appendix
+\section{Appendix}
+
+\setcounter{defn}{1}
+
+\begin{thrm}
+Let $G^+ = (G, T^G)$ be a sample from a generalized \matern type-III process, augmented with the birth 
+times. Let $\lambda$ be its intensity, and $\mathscr{H}_{\theta}(s,t;G^+)$ be its shadow following the appropriate thinning scheme. %, and let  $\mathscr{H}(s,t;G^+$.
+%the process have intensity $\lambda$ and interaction radius $R$. Then, letting $I$ denote the indicator function, 
+Then, its density w.r.t.\  ${\mu}^{\cup}$ is 
+\begin{align}
+  p(G^+ \given \lambda, \theta) &=\exp\left(-\lambda \int_{\cS \times \cT}\left( 1 - \mathscr{H}_{\theta}(s,t;G^+)\right)\mu(\dif s \,\dif t)\right)
+              \lambda^{|G^+|}  \nonumber \\
+              & \quad \times  \prod_{g^+ \in G^+} \left( 1 - \mathscr{H}_{\theta}(g^+;G^+) \right).
+\label{eq:mat_marg_prob_app}
+\end{align}
+
+% Consider a \matern type-III process with intensity $\lambda$, and let $G^+ = (G, T^G)$ be a sample from this
+% process (augmented with the set of birth times). Let $\mathscr{H}_{\theta}(s,t;G^+)$ be the shadow defined by $G^+$,
+% where $\theta$ parametrizes the \matern thinning process. %, and let  $\mathscr{H}(s,t;G^+$.
+% %the process have intensity $\lambda$ and interaction radius $R$. Then, letting $I$ denote the indicator function, 
+% Then, the density w.r.t.\  the measure ${\mu}^{\cup}$ is given by
+% \begin{align}
+%  p(G^+ ) &=\exp\left(-\lambda \int_{\cS \times \cT}\!\!\left( 1 - \mathscr{H}_{\theta}(s,t;G^+)\right)\mu(\dif s\ \dif t)\right)
+%               \prod_{g^+ \in G^+}  \lambda \left( 1 - \mathscr{H}_{\theta}(g^+;G^+) \right)
+% \label{eq:mat_marg_prob_app}
+% \end{align}
+\end{thrm}
+\begin{proof}
+ As described in Section~\ref{sec:matern_pdf},  $G^+= (G, T^G)$ is a sequence in the union space $(\cS\times\cT)^{\cup}$. Its elements are ordered by the last dimension, so that $T^G$ is an
+  increasing sequence. Let $|G^+|$, the length of $G^+$, be $k$. $G^+$ is obtained by thinning $F^+=(F,T^F)$, a sample from a homogeneous Poisson 
+process with intensity $\lambda$.
+Let the size of $F^+$ be $n \ge k$, and call the thinned points $\tG^+$. %, so that $F^+ = \tG^+ \cup G^+$. 
+From Theorem~\ref{thrm:poiss_density}, the density of $F^+$ w.r.t.\ the measure ${\mu}^{\cup}$ is 
+\begin{align}
+ p(F^+) &= \exp\left(-\lambda \mu(\cS \times \cT)\right) \lambda^n. \label{eq:mat_prior_prob_app}
+\end{align}
+%Now, there are $n\choose k$ ordered versions of $F^+$ mapping to the \matern sequence $G^+$, 
+%so that the conditional density of $G^+$ is given by %Given this set, the \matern events follow by deterministic thinning, with
+ Recall the definition of $\mathscr{H}_{\theta}(s,t; G^+)$, the shadow of $G^+$
+(with $K_{\theta}$ the thinning kernel):
+\begin{align}
+  \mathscr{H}_{\theta}(s,t;G^+) &= 1 - \prod_{(s^*,t^*) \in G^+} (1 - I(t > t^*) K_{\theta}(s^*, s)) 
+\end{align}
+ We traverse sequentially through $F^+$, assigning element $i$ to the \matern process $G^+$ or the thinned set $\tG^+$ with probability determined
+ by the shadow $\mathscr{H}_{\theta}(\cdot;G^+)$, and %Simultaneously, create a binary sequence $L$ of length $|F^+|$, with the $i$th element equal to
+ %$0$ or $1$ if the $i$th element of $F^+$ is thinned or not thinned. We have
+\begin{align}
+  p(G^+, \tG^+ | F^+) = \prod_{(s,t) \in \tG^+} \mathscr{H}_{\theta}(s,t;G^+)  \prod_{(s,t) \in G^+} (1- \mathscr{H}_{\theta}(s,t;G^+)).   \label{eq:mat_marg_app}
+\end{align}
+In our notation above, the shadow $\mathscr{H}_{\theta}$ thins or keeps points to form $G^+=(G,T^G)$ and $\tG^+=(\tG, T^{\tG})$, but $\mathscr{H}_{\theta}$ also depends on 
+$G^+$. There is no circularity: the shadow of a later point cannot affect an earlier point. 
+The joint probability density w.r.t.\ $\mu^{\cup}$  is 
+%where $\rho(a,B)$ is the minimum distance of $a$ from all elements of set $B$.
+%The first product in the equation above is the probability that all events in $G^+$ are not thinned by the \matern shadow, while the second term is the
+%probability that the remaining points are thinned. 
+%Following \citep{Hube:Wolp:2009}, we write this term
+%more compactly as $I_{\rho(G) > R}$, where $\rho(G)$ is the minimum distance between the elements of the set $G$.
+%Thus,
+%\begin{align}
+% p(G^+ | F^+) &= \frac{n!}{k! (n-k)!} I(F \in \mathscr{H}(G^+,R)) I_{\rho(G) > R} \label{eq:mat_cond_app} \\
+\begin{align}
+   p(G^+,\tG^+,&F^+) = p(G^+, F^+) = p(G^+, \tG^+) = \nonumber \\  
+   \exp(-\lambda &\mu(\cS \times \cT)) \lambda^{n} %\nonumber \\
+              \prod_{(s,t) \in \tG^+} \mathscr{H}_{\theta}(s,t;G^+)  \prod_{(s,t) \in G^+} (1- \mathscr{H}_{\theta}(s,t;G^+)).   \label{eq:mat_joint_app}
+            % & \quad \prod_{\{i: l_i = 0\}} \mathscr{H}_{\theta}(f^+_i;G^+)  \prod_{\{i:l_i=1\}} (1- \mathscr{H}_{\theta}(f^+_i;G^+)) 
+            \intertext{Note that $\muu(\dif F^+) =
+            \mu(\dif F^+) = \mu(\dif G^+) \mu(\dif \tG^+ )  = \muu(\dif G^+) \mu(\dif \tG^+ ) $, where we abuse notation slightly
+            by letting $\mu$ be Lebesgue measure of dimensionality determined by its argument.
+            Then, integrating out the $\cS$-locations of $n-k$ thinned elements, 
+            } %whose corresponding elements in $L$ are $0$, then $F^+$ reduces to $G^+$. Thus}
+   p\left(G^+, T^{\tG} \right)  &=  \exp(-\lambda \mu(\cS \times \cT))
+             \lambda^{k}  \prod_{(s,t) \in G^+} (1- \mathscr{H}_{\theta}(s,t;G^+)) \nonumber \\
+             & \quad \prod_{t^{\tilde{g}} \in T^{\tG}} {\left( \lambda \int_{\cS } \mathscr{H}_{\theta}(s,t^{\tilde{g}};G^+)\mu(\dif s) \right)}. \label{eq:mat_l} %\\
+%        &=  \exp(-\lambda \mu(\cS \times \cT)) \lambda^{k}
+%           \prod_{(s,t) \in G^+} (1- \mathscr{H}(s,t;G^+)) \nonumber \\
+%             & \quad \frac{\left( \lambda \int_{\cS \times \cT} \mathscr{H}(G^+,R)\mu(\dif S \dif T) \right)^{n-k}}{(n-k)!}  
+\end{align}
+{
+%The $n!/k!$ term in the denominator arises because of the factorial term in the base measure $\mu^{\cup}$ (see equation \eqref{eq:base_measure1}, and note that now $\cS$ is actually $\cS \times \cT$). In particular, for
+%$A \in \Sigma^{k}$, observe that
+We now integrate out the values of $T^{\tG}$, noting it is an ordered sequence of $(n-k)$ elements in $[0,1]$. We are left with 
+$p(G^+, |T^{\tilde{G}}|=n-k )$, the joint probability of a sequence $G^+$ and that there are $n-k$ thinned events:
+%\begin{align}\muu(A \times (\cS \times \cT)^{n-k}) = \frac{1}{n!} \mu^{k}(A) \mu^{n-k}(\cS \times \cT)  = \left(\frac{k!}{n!} \mu^{n-k}(\cS \times \cT) \right)\muu(A)
+%\end{align} %see \eqref{eq:poiss_fact}. 
+%Returning to equation~\eqref{eq:mat_l}, note that $L$ has length $n$ with $k$ ones. There are $n\choose k$ such vectors. Adding over them, we get
+%the joint probability of $G^+$ and $L$ having length $n$:
+\begin{align}
+  p\left(G^+, |T^{\tilde{G}}|=n-k \right)  &=  \exp(-\lambda \mu(\cS \times \cT))
+             \lambda^{k}  \prod_{(s,t) \in G^+} (1- \mathscr{H}_{\theta}(s,t;G^+)) \nonumber \\
+          & \quad \frac{\left( \lambda \int_{\cS \times \cT} \mathscr{H}_{\theta}(s,t;G^+)\mu(\dif s\ \dif t) \right)^{n-k}}{(n-k)!}.  %\\
+%        &=  \exp(-\lambda \mu(\cS \times \cT)) \lambda^{k}
+%           \prod_{(s,t) \in G^+} (1- \mathscr{H}(s,t;G^+)) \nonumber \\
+%             & \quad \frac{\left( \lambda \int_{\cS \times \cT} \mathscr{H}(G^+,R)\mu(\dif S \dif T) \right)^{n-k}}{(n-k)!}  
+\end{align}
+Finally, summing over values of $|T^{\tG}|$,}
+\begin{align}
+ p\left(G^+ \right)  %&=    \exp(-\lambda \mu(\cS \times \cT)) \lambda^{k}
+           %      \prod_{(s,t) \in G^+} (1- \mathscr{H}(s,t;G^+)) \nonumber \\
+           %& \qquad \sum_{n=k}^{\infty}  \frac{\left( \lambda \int_{\cS \times \cT} \mathscr{H}(G^+,R)\mu(\dif s \dif t) \right)^{n-k}}{(n-k)!}  \\
+           &=   \exp\left(-\lambda  \int_{\cS \times \cT} \left(1 -  \mathscr{H}_{\theta}(s,t;G^+) \right) \mu(\dif s\ \dif t)  \right)
+                 \prod_{(s,t) \in G^+} \lambda (1- \mathscr{H_{\theta}}(s,t;G^+)).
+\end{align}
+%$p(\tG | \lambda(),R) = \frac{p(\tF, \tG)}{p(\tF | \tG)}$. For the homogeneous,
+%hardcore case, 
+${}_\blacksquare$
+\end{proof}
+\bibliographystyle{apalike}
+\bibliography{refvr}
+
+\end{document}
